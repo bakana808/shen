@@ -6,8 +6,6 @@ var User =        require("../user");
 var Match =       require("../match");
 var MatchSeries = require("../match/series");
 var Round =       require("../round");
-var Gametype =    require("../gametype");
-var Tournament =  require("../tournament");
 
 var { Keys, Errors } = require("./firebase/constants");
 
@@ -68,81 +66,6 @@ class FirebaseDatabase {
 
 		throw new TypeError("Cannot create a database model from this object: " + obj);
 	}
-
-	// static _snapshotToRound(match, roundid, round_ss) {
-	// 	if(!round_ss.exists()) {
-	// 		throw new ReferenceError("cannot create round from empty snapshot.");
-	// 	}
-	//
-	// 	// obtain winner of the round
-	// 	// --------------------------
-	// 	var winner_index = round_ss.child("winner").val();
-	// 	var winner = match.userIDs[winner_index];
-	//
-	// 	return shen.Round(match.id, roundid, winner);
-	// }
-
-	// static _snapshotToMatch(id, snapshot) {
-	// 	if(!snapshot.exists()) { return null; }
-	//
-	// 	// obtain userIDs in the match
-	// 	// -----------------------------
-	// 	var userIDs = snapshot.child("players").val();
-	//
-	// 	// obtain best-of value
-	// 	// --------------------
-	// 	var numRounds = snapshot.child("set").val();
-	//
-	// 	var time = snapshot.child("time").val();
-	//
-	// 	// obtain scores in the match
-	// 	// --------------------------
-	// 	// var scores = {};
-	// 	// userIDs.forEach((userID) => {
-	// 	// 	scores[userID] = 0;
-	// 	// });
-	//
-	// 	// read rounds
-	// 	// -----------
-	// 	var rounds = [];
-	//
-	// 	var promise = Promise.resolve();
-	//
-	// 	for(var i = 0; i < numRounds; i++) {
-	// 		var round_ss = snapshot.child(`games/${ i }/reports/0`);
-	// 		if(round_ss.exists()) {
-	// 			rounds.push(this._snapshotToRound(id, i, userIDs, round_ss));
-	// 		}
-	// 	}
-	//
-	// 	return new Promise((resolve) => {
-	// 		return this.fetchUsers(userIDs)
-	// 		.then((users) => {
-	// 			return shen.Match(id, users, rounds, numRounds, time);
-	// 		});
-	// 	}); then(() => {
-	// 		return this.fetchUsers(userIDs);
-	// 	});
-	// 	//var scoreboard = shen.scoreboard(userIDs, scores, numRounds);
-	// }
-
-	// static _snapshotToTournament(tournamentID, tournamentSs) {
-	// 	if(!tournamentSs.exists()) { return null; }
-	//
-	// 	var gameID = tournamentSs.child("game").val();
-	// 	var title = tournamentSs.child("title").val();
-	//
-	// 	this.fetchGametype(gameID)
-	// 	.then((gametype) => {
-	//
-	// 	})
-	// 	.catch(error => { throw error; });
-	// 	var options = {
-	// 		title: tournamentSs.child("title").val()
-	// 	};
-	//
-	// 	return shen.Tournament(tournamentID, gameID, options);
-	// }
 
 	fetch(key) {
 		return new Promise((resolve) => {
@@ -383,41 +306,6 @@ class FirebaseDatabase {
 		});
 	}
 
-	// /**
-	//  * Fetches a range of matches from the tournamentID. By default,
-	//  * the range is all the matches. Options can be given to narrow the range.
-	//  */
-	// fetchTournamentMatches(tournamentID, options = {}) {
-	// 	return new Promise((resolve) => {
-	// 		var matches = [];
-	// 		var count = 0;
-	// 		if(typeof options.count === "number") {
-	// 			count = options.count;
-	// 		}
-	//
-	// 		this.fb.ref(`rankings/matches/${ tournamentID }`).once("value", (snapshot) => {
-	//
-	// 			if(!snapshot.exists()) {
-	// 				Logger.log(this.prefix, `Tried to read Matches for Tournament (id=${ tournamentID }), but couldn't find any.`);
-	// 				resolve(null); return;
-	// 			}
-	//
-	// 			var id = 0;
-	// 			snapshot.forEach(function(matchSnapshot) {
-	// 				var match = FirebaseDatabase._snapshotToMatch(id, matchSnapshot);
-	// 				if(match !== null) { matches.push(match); }
-	// 				id++;
-	//
-	// 				if(count > 0 && id >= count) return true;
-	// 			});
-	//
-	// 			Logger.log(this.prefix, `Read ${ matches.length } Matches from Tournament (id=${ tournamentID }).`);
-	//
-	// 			resolve(matches);
-	// 		});
-	// 	});
-	// }
-
 	fetchTournamentUsers(tournamentID) {
 		var key = `rankings/players/${ tournamentID }`;
 		return this.fetch(key).then((snapshot) => {
@@ -459,26 +347,8 @@ class FirebaseDatabase {
 		});
 	}
 
-	// fetchUser(id) {
-	// 	//Logger.log(this.prefix, `Attempting to fetch User with id=${ id }.`);
-	//
-	// 	return new Promise((resolve, reject) => {
-	// 		this.fb.ref(`users/${ id }`).once("value", (snapshot) => {
-	//
-	// 			if(snapshot.exists()) {
-	// 				var val = snapshot.val();
-	// 				Logger.log(this.prefix, `User (id=${ id }) was read from the database.`);
-	// 				resolve(User.create(snapshot.key, val["nickname"]));
-	// 			} else {
-	// 				Logger.log(this.prefix, `Tried to read User (id=${ id }), which was not found.`);
-	// 				reject("The user with this ID does not exist.");
-	// 			}
-	// 		});
-	// 	});
-	// }
-
 	writeUser(user) {
-		return new Promise((resolve, reject) => {
+		return new Promise((_resolve, reject) => {
 			// reference to a user model
 			var ref = this.fb.ref(`users/${ user.id }`);
 			ref.once("value", (snapshot) => {
