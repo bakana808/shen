@@ -1,0 +1,99 @@
+
+var UserStatistics = require("./statistics");
+
+/**
+ * This class represents player statistics for a specific tournament.
+ * These statistics works with a certain amount of matches from the tournament.
+ * By default, the statistics are for every match in the tournament, but it can
+ * also be used in a snapshot-like way (i.e. statistics only up to the 10th match).
+ *
+ * If "date" is defined in the options as a UNIX time, only matches up until that date
+ * will be used.
+ *
+ * If "match" is defined in the options as a number, only the matches up until that match
+ * will be used. If "match" is -1 (the default), every match will be used.
+ *
+ * If "player" is defined in the options, the "match" option will be used relative
+ * to the player. For example, if "match" is 5, the statistics will read up until
+ * the defined player's 5th match.
+ */
+class TournamentSnapshot {
+	constructor(tournament, end = -1) {
+		/**
+		 * The map containing the stats of every user in the tournament.
+		 */
+		Object.defineProperty(this, "statmap", {value: new Map()});
+
+		//initialize stats map
+		tournament.users.forEach(user => {
+			this.statmap.set(user, new UserStatistics());
+		});
+
+		tournament.matches.forEach(match => {
+
+			// temporarily hold rating adjustments to apply after forEach loop
+			var adjustments = new Map();
+
+			match.users.forEach(user => {
+				var stats = this.statmap.get(user);
+				stats = stats.incrementTotalMatches();
+
+				var opponent = match.getOpponents(user)[0];
+				var opponentRating = this.getStats(opponent);
+
+				var adjustment = 0;
+				if(match.isWinner(user)) { // user won
+					stats = stats.incrementWins();
+
+					// get rating adjustment using Elo
+					adjustment = Math.ceil(shenElo.adjust(pstats.rating, opponent_rating, 1) * gainMap.get(pstats.rating));
+				} else { // user lost
+					adjustment = Math.ceil(shenElo.adjust(pstats.rating, opponent_rating, 0) * lossMap.get(pstats.rating));
+				}
+			});
+		});
+	}
+
+	getStats(user) {
+		if(this.statmap.has(user))
+			return this.statmap.get(user);
+		throw new ReferenceError("This user does not exist in the tournament.");
+	}
+
+	forEach(fn) {
+		this._userIds.sort((a, b) => { return this.rating(b) - this.rating(a); });
+		this._userIds.forEach((userId) => fn(this.getPlayerStats(userId), userId));
+	}
+
+	rating(userId) { return this.getPlayerStats(userId).rating; }
+
+	/**
+	 * Adjusts this TournamentSnapshot from a match, and returns a new
+	 * TournamentSnapshot.
+	 *
+	 * @param  {type} match the match used for adjustment
+	 * @returns {type}      a TournamentSnapshot
+	 */
+	adjustSnapshot(match) {
+
+	}
+
+	static Latest(tournament) {
+		var stats = new Map();
+		tournament.userIds.forEach(userId => stats.set(userId, new Statistics(userId)));
+
+		tournament.matches.forEach((match, i) => {
+			if(match.isComplete()) {
+
+			} else {
+				Logger.warn(`Skipping Match (id=${i}) (not complete)`);
+			}
+		});
+	}
+
+	static FromMatches(tournament, count) {
+
+	}
+}
+
+module.exports = TournamentSnapshot;
