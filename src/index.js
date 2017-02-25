@@ -45,8 +45,9 @@ bot.registerCommand("!info",      DiscordCommands.tournamentInfo);
 bot.registerCommand("!stats",     DiscordCommands.playerStats);
 bot.registerCommand(".history",   DiscordCommands.playerHistory);
 bot.registerCommand(".standings", DiscordCommands.tournamentRankings);
-bot.registerCommand("!t",         DiscordCommands.tournament);
+bot.registerCommand(".tourny",         DiscordCommands.tournament);
 bot.registerCommand(".current",   DiscordCommands.setCurrentTournament);
+bot.registerCommand(".adduser",   DiscordCommands.addUser);
 
 // == initialize express == //
 
@@ -65,7 +66,7 @@ passport.use(new DiscordStrategy({
 	clientID: "237794547663372299",
 	clientSecret: "dNay5zVEAl8ed9bhoUd1HQCo5NpzwbUv",
 	callbackURL: "http://localhost:5000/auth/callback"
-}, (accessToken, refreshToken, profile, done) => {
+}, (_accessToken, _refreshToken, profile, done) => {
 	process.nextTick(() => {
 		console.log(profile);
 		shen.writeUser(User.create(profile.id, profile.userid));
