@@ -63,6 +63,27 @@ class DiscordCommands {
 			}
 		}
 	}
+
+	static addUser(member, channel, args) {
+		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
+			return; // lock out any user that is not a server admin
+		}
+
+		if(args.length >= 2) {
+			let userID = args[0];
+			let nickname = args.slice(1).join(" "); // join everything after 1st arg
+
+			let user = shen.User(userID, nickname);
+			shen.db.addUser(user)
+			.then(()=> {
+				channel.sendMessage(outdent`
+					Successfully added user with ID \`${userID}\`. :ok_hand:
+					Nickname: \`${nickname}\`
+				`);
+			});
+		}
+	}
+
 	// prints player statistics
 	static playerStats(_author, channel, args) {
 		if(args.length == 2) {
@@ -144,32 +165,16 @@ class DiscordCommands {
 		}
 	}
 
-	static setCurrentTournament(_author, channel, args) {
-		if(args.length == 0) {
-			channel.sendMessage(outdent`
-				\`\`\`md
-				.current <t-id> - sets the current tournament for future commands
-				\`\`\`
-			`);
-			if(Static.tournament == null) {
-				channel.sendMessage("There's no current tournament set right now.");
-			} else {
-				channel.sendMessage("The current tournament is: " + Static.tournament.title);
-			}
-		}
-		if(args.length >= 1) {
-			let tournamentId = args[0];
-			try {
-				shen.fetchTournament(tournamentId)
-				.then(tournament => {
-					Static.tournament = tournament;
-					channel.sendMessage("The current tournament is: " + Static.tournament.title);
-				});
-			} catch (error) {
-				channel.sendMessage("We couldn't find a tournament with that ID. :disappointed_relieved:");
-			}
-		}
-	}
+	// static setCurrentTournament(_author, channel, args) {
+	// 	if(args.length == 0) {
+	// 		channel.sendMessage(outdent`
+	// 			\`\`\`md
+	// 			.current <t-id> - sets the current tournament for future commands
+	// 			\`\`\`
+	// 		`);
+	// 	}
+	//
+	// }
 
 	/**
 	 * Game management commands
@@ -202,18 +207,37 @@ class DiscordCommands {
 		if(args.length == 0) { // help command
 			channel.sendMessage(outdent`
 				\`\`\`md
-				!tournament - print this help message
-				!tournament new <id> <game> - initializes a new tournament
-				!tournament set <id> <property> <value> - sets a config property
-				!tournament add <id> <user|match> <id> - adds a player or match by their id
-				!t match <id> <user a> <user b> <winner> - adds a new match with basic information
+				.tourny - print this help message
+				.tourny create <id> <game> - initializes and sets a tournament
+				.tourny set <id>
+				.tourny edit <property> <value> - sets a config property
+				.tourny adduser <userID> - adds a player or match by their id
+				.tourny match <userID a> <userID b> <winner> - adds a new match with basic information
 				\`\`\`
 			`);
+			if(Static.tournament == null) {
+				channel.sendMessage("There's no current tournament set right now.");
+			} else {
+				channel.sendMessage("The current tournament is: " + Static.tournament.title);
+			}
 		}
-		if(args.length == 3 && args[0] == "new") { // new command
+		if(args.length == 2 && args[0] == "set") { // set current tournament
+			let tournamentId = args[1];
+			try {
+				shen.fetchTournament(tournamentId)
+				.then(tournament => {
+					Static.tournament = tournament;
+					channel.sendMessage("The current tournament is: " + Static.tournament.title);
+				})
+				.catch(error => console.log("```" + error.stack + "```"));
+			} catch (error) {
+				channel.sendMessage("We couldn't find a tournament with that ID. :disappointed_relieved:");
+			}
+		}
+		if(args.length == 3 && args[0] == "create") { // new command
 			let tournamentId = args[1];
 			let gameId = args[2];
-			shen.db.writeTournament(tournamentId, gameId)
+			shen.db.addTournament(tournamentId, gameId)
 			.then(() => {
 				channel.sendMessage(`Successfully created new tournament. (\`id=${tournamentId}, game=${gameId}\`)`);
 			})
@@ -221,20 +245,24 @@ class DiscordCommands {
 				channel.sendMessage("```" + error.stack + "```");
 			});
 		}
-		if(args.length === 4 && args[0] == "add") { // add command
-			if(args[2] == "user") {
-				let tournamentId = args[1];
-				let userId = args[3];
-				shen.db.writePlayer(tournamentId, userId)
+		if(args.length === 2 && args[0] == "adduser") { // add user command
+			if(Static.tournament == null) {
+				channel.sendMessage("There's no current tournament set right now.");
+				return; // end command here
+			}
+			let userID = args[1];
+			shen.db.fetchUser(userID)
+			.then(user => {
+				shen.db.addPlayer(user, Static.tournament.id)
 				.then(() => {
-					channel.sendMessage(`Added player ${userId} to tournament. (\`id=${tournamentId}\`)`);
+					channel.sendMessage(`Added player ${user.id} to tournament. (\`id=${Static.tournament.id}\`)`);
 				})
 				.catch(error => {
 					channel.sendMessage("```" + error.stack + "```");
 				});
-			}
+			});
 		}
-		if(args.length == 4 && args[0] == "set") { // new command
+		if(args.length == 4 && args[0] == "edit") { // new command
 			let tournamentId = args[1];
 			let property =     args[2];
 			let value =        args[3];
@@ -248,11 +276,14 @@ class DiscordCommands {
 				channel.sendMessage("```" + error.stack + "```");
 			});
 		}
-		if(args.length == 5 && args[0] == "match") { // new match command
-			let tournamentId = args[1];
-			let userIds =      [args[2], args[3]];
-			let winners =      [args[4]];
-			shen.db.writeMatch(tournamentId, userIds, winners)
+		if(args.length == 4 && args[0] == "match") { // new match command
+			if(Static.tournament == null) {
+				channel.sendMessage("There's no current tournament set right now.");
+				return; // end command here
+			}
+			let userIds =      [args[1], args[2]];
+			let winners =      [args[3]];
+			shen.db.createMatch(Static.tournament.id, userIds, winners)
 			.then(() => {
 				channel.sendMessage(`Added new match ("${userIds[0]} vs ${userIds[1]}")`);
 			})
@@ -321,24 +352,39 @@ class DiscordCommands {
 				var last_division = "";
 				var standings = tournament.standings.latest();
 				channel.sendMessage("Current tournament standings for: **" + tournament.title + "**\n");
+				var unrankedUsers = [];
 				standings.rankings.forEach(user => {
 					var division = tournament.ranker.getDivision(standings.rating(user));
-
-					if(division.name !== last_division) {
-						if(last_division !== "") {
-							message += "\`\`\`\n";
+					var stats = standings.getStats(user);
+					// the number of matches in order to be ranked
+					if(stats.matches.length >= 3) { // TODO: don't hardcode this value
+						if(division.name !== last_division) {
+							if(last_division !== "") {
+								message += "\`\`\`\n";
+							}
+							message += "*Division " + division.name + "*\n";
+							message += "\`\`\`md\n";
+							last_division = division.name;
 						}
-						message += "*Division " + division.name + "*\n";
-						message += "\`\`\`md\n";
-						last_division = division.name;
-					}
 
-					message += "<" + standings.rating(user) + "> | ";
-					message += user.nickname + "\n";
+						message += "<" + standings.rating(user) + "> | ";
+						message += user.nickname + "\n";
+					} else {
+						unrankedUsers.push(user);
+					}
 				});
 
 				message += "\`\`\`";
 
+				channel.sendMessage(message);
+
+				// after, print unranked players
+				channel.sendMessage("The following players are currently unranked:");
+				message = "\`\`\`\n";
+				unrankedUsers.forEach(user => {
+					message += user.nickname + "\n";
+				});
+				message += "\`\`\`";
 				channel.sendMessage(message);
 			})
 			.catch(error => {

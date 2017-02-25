@@ -16,7 +16,7 @@ module.exports = class DiscordBot {
 			// save the rankings text channel into a variable
 			// TODO: don't hardcode the server id
 			this.channel = this.bot.guilds.get("174405074087313408")
-			.channels.find("name", "tournaments");
+			.channels.find("name", "dev");
 			this.online = true;
 		});
 
@@ -33,7 +33,6 @@ module.exports = class DiscordBot {
 					} catch(error) {
 						message.channel.sendMessage("```" + error.stack + "```");
 					}
-
 				}
 			}
 		});
