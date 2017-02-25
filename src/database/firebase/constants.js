@@ -15,8 +15,8 @@ const Keys = exports.Keys = {
 	tournament: (tournamentID) => `${Keys.tournaments}/${tournamentID}`,
 	tournamentGame:    (tournamentID) => `${Keys.tournament(tournamentID)}/game`,
 	tournamentTitle:   (tournamentID) => `${Keys.tournament(tournamentID)}/title`,
-
-	tournamentPlayers: (tournamentID) => `rankings/players/${tournamentID}`,
+	tournamentPlayers: (tournamentID) => `${Keys.tournament(tournamentID)}/players`,
+	//tournamentPlayers: (tournamentID) => `rankings/players/${tournamentID}`,
 	tournamentPlayer: (tournamentID, userID) => `${Keys.tournamentPlayers(tournamentID)}/${userID}`,
 
 	// matches
