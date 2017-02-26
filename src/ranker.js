@@ -56,10 +56,10 @@ class Ranker {
 			floor:   500,
 			initial: 1000, // the initial rating for users
 			divisions: [
-				new Division({name: "C", start: 0,    k: 60, gain: 1.5, loss: 0.5}),
-				new Division({name: "B", start: 950,  k: 70}),
-				new Division({name: "A", start: 1000, k: 70}),
-				new Division({name: "S", start: 1100, k: 80, loss: 1.5})
+				new Division({name: "C", start: 0,    k: 48}),
+				new Division({name: "B", start: 1000, k: 32}),
+				new Division({name: "A", start: 1050, k: 24}),
+				new Division({name: "S", start: 1150, k: 16})
 			]
 		}, options);
 		// sort the divisions array first by starting ratings
@@ -110,15 +110,22 @@ class Ranker {
 			);
 		}
 
-		//== new player rule ==//
+		//== hidden division ==//
 		var bonus = 1.0;
-		if(stats.totalMatches <= 3) { // if this match is one of the first three matches, give a bonus.
-			bonus = 2.0;
+		var division;
+		if(stats.matches.length < 3) { // if this match is one of the first three matches, give a bonus.
+			division = new Division({
+				name: "Hidden",
+				start: 0,
+				k: 40
+			});
+			//bonus = 1.5;
+		} else {
+			division = this.getDivision(stats.rating);
 		}
 
 		//stats = stats.incrementTotalMatches();
-
-		var division = this.getDivision(stats.rating);
+		//var division = this.getDivision(stats.rating);
 		var opponent = match.getOpponents(stats.user)[0];
 		var opponentRating = standings.getStats(opponent).rating;
 
