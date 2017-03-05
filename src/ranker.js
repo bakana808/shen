@@ -59,7 +59,7 @@ class Ranker {
 				new Division({name: "C", start: 0,    k: 48}),
 				new Division({name: "B", start: 1000, k: 32}),
 				new Division({name: "A", start: 1050, k: 24}),
-				new Division({name: "S", start: 1150, k: 16})
+				new Division({name: "S", start: 1100, k: 16})
 			]
 		}, options);
 		// sort the divisions array first by starting ratings
