@@ -63,7 +63,9 @@ class DiscordCommands {
 			}
 		}
 	}
-
+	static killme(member, channel, args) {
+		channel.sendMessage("i want to die :sob: :gun:");
+	}
 	static addUser(member, channel, args) {
 		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
 			return; // lock out any user that is not a server admin
@@ -189,6 +191,69 @@ class DiscordCommands {
 				.g <id> edit stage <stage>
 				\`\`\`
 			`);
+		}
+		var time = Date.now();
+		var elapsed = () => {
+			return (Date.now() - time) / 1000;
+		};
+
+		// set current game
+		if(args.length == 2 && args[0] == "set") {
+			var gameID = args[1];
+			shen.db.fetchGametype(gameID)
+			.then(game => {
+				Static.game = game;
+				channel.sendMessage(`Fetched game **${game.title}** in ${elapsed()} seconds.`);
+			})
+			.catch(_error => {
+				channel.sendMessage("Sorry, we couldn't find a game with that ID.");
+			});
+		}
+		if(args.length >= 1 && args[0] == "stage") {
+			let game = Static.game;
+			// add stage
+			// ---------
+			if(args.length >= 4 && args[1] == "add") {
+				let stageID = args[2].toLowerCase();
+				let stageTitle = args.slice(3).join(" "); // join everything after 1st arg
+				shen.db.writeGameProperty(game.id, "stage/" + stageID, stageTitle)
+				.then(() => {
+					channel.sendMessage(`Added stage **${stageTitle}** \`id=${stageID}\` in ${elapsed()} seconds.`);
+				});
+			}
+			// list stages
+			// -----------
+			if(args.length >= 2 && args[1] == "list") {
+				let message = "```\n";
+				Object.getOwnPropertyNames(game.stages).forEach(key => {
+					message += `(${key}) ${game.stages[key]}\n`;
+				});
+				message += "```";
+				channel.sendMessage(message);
+			}
+		}
+		if(args.length >= 1 && args[0] == "char") {
+			let game = Static.game;
+			// add character
+			// -------------
+			if(args.length >= 4 && args[1] == "add") {
+				let charID = args[2].toLowerCase();
+				let charName = args.slice(3).join(" "); // join everything after 1st arg
+				shen.db.writeGameProperty(game.id, "character/" + charID, charName)
+				.then(() => {
+					channel.sendMessage(`Added character **${charName}** \`id=${charID}\` in ${elapsed()} seconds.`);
+				});
+			}
+			// list characters
+			// ---------------
+			if(args.length >= 2 && args[1] == "list") {
+				let message = "```\n";
+				Object.getOwnPropertyNames(game.characters).forEach(key => {
+					message += `(${key}) ${game.characters[key]}\n`;
+				});
+				message += "```";
+				channel.sendMessage(message);
+			}
 		}
 	}
 
