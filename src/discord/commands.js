@@ -63,9 +63,39 @@ class DiscordCommands {
 			}
 		}
 	}
-	static killme(member, channel, args) {
+	static killme(_member, channel, _args) {
 		channel.sendMessage("i want to die :sob: :gun:");
 	}
+
+	/**
+	 * @static
+	 * Links a user to a discord account. Takes the @mention of the
+	 * user as the argument.
+	 *
+	 * @param  {type} member  description
+	 * @param  {type} channel description
+	 * @param  {type} args    description
+	 */
+	static linkUser(member, channel, args) {
+		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
+			return; // lock out any user that is not a server admin
+		}
+
+		if(args.length >= 2) {
+			let userID = args[0].toLowerCase();
+			let mention = args[1];
+			if(mention.indexOf("<@") !== 0) {
+				channel.sendMessage("The second argument isn't a @mention. `" + mention + "`");
+				return;
+			}
+			let username = mention.substring(2, mention.length - 1);
+			shen.db.discordLinkUser(userID, username)
+			.then(() => {
+				channel.sendMessage(`Successfully linked user \`${userID}\` to Discord account \`${username}\``);
+			});
+		}
+	}
+
 	static addUser(member, channel, args) {
 		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
 			return; // lock out any user that is not a server admin
@@ -341,13 +371,27 @@ class DiscordCommands {
 				channel.sendMessage("```" + error.stack + "```");
 			});
 		}
-		if(args.length == 4 && args[0] == "match") { // new match command
+		if(args.length >= 2 && args[0] == "match") { // new match command
 			if(Static.tournament == null) {
 				channel.sendMessage("There's no current tournament set right now.");
 				return; // end command here
 			}
-			let userIds =      [args[1], args[2]];
-			let winners =      [args[3]];
+			let input = args[1];
+			let userIds, winners;
+			if(input.indexOf("<") !== -1) { // left player won
+				userIds = input.split("<");
+				winners = [userIds[0]];
+			} else
+			if (input.indexOf(">") !== -1) { // right player won
+				userIds = input.split(">");
+				winners = [userIds[1]];
+			}
+			else { // none of the characters were found, throw an error
+				throw new TypeError("Recieved username input without < or >: " + input);
+			}
+
+			// let userIds =      [args[1], args[2]];
+			// let winners =      [args[3]];
 			shen.db.createMatch(Static.tournament.id, userIds, winners)
 			.then(() => {
 				channel.sendMessage(`Added new match ("${userIds[0]} vs ${userIds[1]}")`);
@@ -432,7 +476,7 @@ class DiscordCommands {
 							last_division = division.name;
 						}
 
-						message += "<" + standings.rating(user) + "> | ";
+						message += "<" + standings.rating(user) + "> < " + standings.getStats(user).points + " pts > | ";
 						message += user.nickname + "\n";
 					} else {
 						unrankedUsers.push(user);

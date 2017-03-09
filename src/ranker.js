@@ -53,7 +53,7 @@ class Division {
 class Ranker {
 	constructor(options = {}) {
 		options = Options.merge({
-			floor:   500,
+			floor:   950,
 			initial: 1000, // the initial rating for users
 			divisions: [
 				new Division({name: "C", start: 0,    k: 48}),
@@ -132,17 +132,24 @@ class Ranker {
 		//console.log(`using division ${division.name} k:${division.k} gain:${division.gain} loss:${division.loss}`);
 		//console.log(`opponent rating: ${opponentRating}`);
 
+		let adjustment = 0;
+
 		if(match.isWinner(stats.user)) { // user won
 			stats = stats.incrementWins();
 			// get rating adjustment using Elo
-			stats = stats.adjustRating(Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, division.k) * division.gain * bonus));
+			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, division.k) * division.gain * bonus);
 		} else { // user lost
-			var adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 0, division.k) * division.loss * bonus);
-			console.log("rating adjustment: " + adjustment);
-			stats = stats.adjustRating(adjustment);
+			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 0, division.k) * division.loss * bonus);
 		}
 
-		return stats;
+		// apply floor value
+		if(stats.rating + adjustment < this.floor) {
+			adjustment = this.floor - stats.rating;
+		}
+
+		console.log("rating adjustment: " + adjustment);
+
+		return stats.adjustRating(adjustment);
 	}
 }
 
