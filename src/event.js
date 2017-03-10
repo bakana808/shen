@@ -13,11 +13,11 @@ class Event extends Identifiable {
 		if(isNaN(options.time) || options.time < 0) {
 			throw new RangeError("The provided time for this event is invalid: " + options.time);
 		}
-		/**
-		 * The identifier for the event.
-		 * @type {string}
-		 */
-		Object.defineProperty(this, "id", {value: options.id});
+		// /**
+		//  * The identifier for the event.
+		//  * @type {string}
+		//  */
+		// Object.defineProperty(this, "id", {value: options.id});
 		/**
 		 * The time of the event, in UNIX.
 		 * @type {number}

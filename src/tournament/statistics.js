@@ -41,8 +41,12 @@ class UserStatistics {
 		 * @type {Gametype}
 		 */
 		Object.defineProperty(this, "rating", {value: obj.rating});
-
-		console.log(this.matches);
+		/**
+		 * The sum of all the positive rating adjustments.
+		 * @type {number}
+		 */
+		Object.defineProperty(this, "points", {value: obj.points});
+		//console.log(this.matches);
 	}
 
 	// shortcut getter to get win ratio (0 to 1 inclusive).
@@ -76,7 +80,21 @@ class UserStatistics {
 			matches:      this.matches,
 			wins:         this.wins,
 			ranker:       this.ranker,
-			rating:       this.rating + diff
+			rating:       this.rating + diff,
+			points:       this.points,
+		});
+	}
+
+	adjustPoints(diff) {
+		if(isNaN(diff))
+			throw new ReferenceError("Points is not a number, got " + diff);
+		return new UserStatistics({
+			user:         this.user,
+			matches:      this.matches,
+			wins:         this.wins,
+			ranker:       this.ranker,
+			rating:       this.rating,
+			points:       this.points + diff,
 		});
 	}
 
@@ -92,7 +110,8 @@ class UserStatistics {
 			matches:      stats.matches.concat([match]),
 			wins:         stats.wins,
 			ranker:       stats.ranker,
-			rating:       stats.rating
+			rating:       stats.rating,
+			points:       stats.points
 		});
 	}
 
@@ -107,7 +126,8 @@ class UserStatistics {
 			matches:      this.matches,
 			wins:         this.wins + 1,
 			ranker:       this.ranker,
-			rating:       this.rating
+			rating:       this.rating,
+			points:       this.points
 		});
 	}
 
@@ -117,7 +137,8 @@ class UserStatistics {
 			matches:      [],
 			wins:         0,
 			rating:       null,
-			ranker:       null
+			ranker:       null,
+			points:       null,
 		}, obj);
 
 		if(obj.user == null || !(obj.user instanceof User)) {
@@ -141,6 +162,10 @@ class UserStatistics {
 
 		if(isNaN(obj.rating)) {
 			throw new ReferenceError("Rating is not a number, got " + obj.rating);
+		}
+
+		if(isNaN(obj.points)) {
+			throw new ReferenceError("Points is not a number, got " + obj.rating);
 		}
 
 		return obj;

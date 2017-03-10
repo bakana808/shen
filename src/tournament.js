@@ -5,7 +5,7 @@ var shen    = require("./shen");
 var Options = require("./util/options");
 var Event = require("./event");
 //var Player =     require("./player");
-var TournamentStatsHistory = require("./statistics");
+//var TournamentStatsHistory = require("./statistics");
 var TournamentStandingsHistory = require("./tournament/history");
 
 /**

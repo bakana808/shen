@@ -27,7 +27,11 @@ const Keys = exports.Keys = {
 	matchWinners:    (matchID) => `${Keys.match(matchID)}/winners`,
 	matchTournament: (matchID) => `${Keys.match(matchID)}/tournament`,
 	matchRound:      (matchID, i) => `${Keys.match(matchID)}/rounds/${i}`,
-	matchRoundTotal: (matchID) =>    `${Keys.match(matchID)}/roundTotal`
+	matchRoundTotal: (matchID) =>    `${Keys.match(matchID)}/roundTotal`,
+
+	games: "games",
+	game: (gameID) => `${Keys.games}/${gameID}`,
+	gameProperty: (gameID, property) => `${Keys.game(gameID)}/${property}`
 };
 
 const Errors = exports.Errors = {

@@ -1,4 +1,6 @@
 
+var Identifiable = require("./identifiable");
+
 class Ruleset {
 	constructor(name, rules) {
 		this.name = "Untitled Ruleset";
@@ -14,25 +16,47 @@ class Ruleset {
  * This class represents a game, and the type of stats
  * and rules that are supported for it.
  */
-module.exports = class Gametype {
+class Game extends Identifiable {
 
-	constructor(id, options) {
-
+	constructor(options = {}) { super(options);
+		options = Object.assign({
+			title: options.id,
+			compatabilities: ["character", "stage"],
+			characters: {},
+			stages: {},
+		}, options);
 		// defaults
-		this.id = id;
-		this.title = id;
+
 		this._rulesets = {
 			"1v1": new Ruleset("1v1", {})
 		};
 
-		if(typeof options === "object") {
-
-			if("title" in options) { this.title = options.title; }
-		}
-
+		/**
+		 * An array of attributes that this game supports. For example, a game
+		 * that has different characters would have "character" has a compatabilty.
+		 * @type {string[]}
+		 */
+		Object.defineProperty(this, "compatabilities", {value: options.compatabilities});
+		/**
+		 * The title of this game.
+		 * @type {string}
+		 */
+		Object.defineProperty(this, "title", {value: options.title});
+		/**
+		 * The avaliable pickable characters in this game, if the game has
+		 * different characters.
+		 * @type {object}
+		 */
+		Object.defineProperty(this, "characters", {value: options.characters});
+		/**
+		 * The avaliable pickable stages / maps in this game, if the game has
+		 * different stages.
+		 * @type {object}
+		 */
+		Object.defineProperty(this, "stages", {value: options.stages});
 	}
 
-	getTitle() { return this.title; }
+	//getTitle() { return this.title; }
 
 	getRulesets() {
 		return Object.keys(this._rulesets);
@@ -41,4 +65,6 @@ module.exports = class Gametype {
 	getRuleset(ruleset) {
 		return this._rulesets[ruleset];
 	}
-};
+}
+
+module.exports = Game;

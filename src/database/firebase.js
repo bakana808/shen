@@ -6,6 +6,7 @@ var User =        require("../user");
 var Match =       require("../match");
 var MatchSeries = require("../match/series");
 var Round =       require("../round");
+var Game =        require("../gametype");
 
 var { Keys, Errors } = require("./firebase/constants");
 
@@ -76,65 +77,163 @@ class FirebaseDatabase {
 		});
 	}
 
-	write(key, value, options = {}) {
+	write(key, value, overwrite = false) {
 		return new Promise((resolve, reject) => {
 			var ref = this.fb.ref(key);
 			ref.once("value", (snapshot) => {
 				// reject the promise if the key exists
-				if(snapshot.exists() && options.overwrite !== true) {
+				if(snapshot.exists() && overwrite !== true) {
 					// reject the promise
 					reject(`Tried to write to key "${ key }", but it already exists.`);
 				} else {
-					// write the value into the database
-					return ref.set(value).then(() => {
-						Logger.log(this.prefix, `Wrote to key "${ key }".`);
-						resolve();
-					});
+					if(typeof value == "object" && !(value instanceof Array)) {
+						ref.update(value).then(() => {
+							Logger.log(this.prefix, `Updated values at key "${ key }".`);
+							resolve();
+						});
+					} else {
+						ref.set(value).then(() => {
+							Logger.log(this.prefix, `Wrote value at key "${ key }".`);
+							resolve();
+						});
+					}
 				}
 			});
 		});
 	}
 
-	//== User Methods ==//
+	// ==================================== //
+	// General Functions //
 
 	fetchUser(userIDs) {
 		// do some type checking
-		if(!(userIDs instanceof Array)) {
-
-			if(userIDs == null) return [];  // return nothing
-			userIDs = [userIDs]; // convert value to array with single element
-		} else {
-
-			if(userIDs.length == 0) return [];
-		}
-		return this.fetch(Keys.users).then((snapshot) => {
-
-			let users = [];
-			userIDs.forEach(userID => {
-
-				var userSnapshot = snapshot.child(userID);
-				if(userSnapshot.exists()) {
-					// read information from the database
-					var userObject = userSnapshot.val();
-					users.push(shen.User(userID, userObject.nickname));
-				} else {
-					// warn and create dummy User
-					Logger.warn(`User with ID ${ userID } does not exist in the database.`);
-					users.push(shen.User(userID));
+		if(!(userIDs instanceof Array)) { // create single user
+			let userID = userIDs;
+			if(userID == null) return Promise.resolve(null);  // return nothing
+			//userIDs = [userIDs]; // convert value to array with single element
+			return this.fetch(Keys.user(userID)).then(snapshot => {
+				if(!snapshot.exists()) {
+					throw new ReferenceError("The user with this ID does not exist.");
 				}
+				let userObject = snapshot.val();
+				return shen.User(userID, userObject.nickname);
+			});
+		} else { // create array of users
+			if(userIDs.length == 0) return Promise.resolve([]);
+			return this.fetch(Keys.users).then((snapshot) => {
+				let users = [];
+				userIDs.forEach(userID => {
+					var userSnapshot = snapshot.child(userID);
+					if(userSnapshot.exists()) {
+						// read information from the database
+						var userObject = userSnapshot.val();
+						users.push(shen.User(userID, userObject.nickname));
+					} else {
+						// warn and create dummy User
+						Logger.warn(`User with ID ${ userID } does not exist in the database.`);
+						users.push(shen.User(userID));
+					}
+				});
 				return users;
+			});
+		}
+	}
+
+	/**
+	 * Adds a user to the database.
+	 * The promise will reject if the user with that ID already exists.
+	 *
+	 * @param  {User} user The User object to add.
+	 * @returns {undefined}
+	 */
+	addUser(user) {
+		return this.write(Keys.user(user.id), {
+			nickname: user.nickname
+		});
+		// return new Promise((_resolve, reject) => {
+		// 	// reference to a user model
+		// 	var ref = this.fb.ref(`users/${ user.id }`);
+		// 	ref.once("value", (snapshot) => {
+		// 		// check if this user already is in the database
+		// 		if(snapshot.exists()) {
+		// 			// reject the promise
+		// 			Logger.log(this.prefix, `Tried to write User (id=${ user.id }), but that user already exists. (use updateUser()?)`);
+		// 			reject("The user with this ID already exists.");
+		// 		} else {
+		// 			// this user doesn't exist, so write the user
+		// 			// into the database
+		// 			return ref.set({
+		// 				nickname: user.nickname
+		// 			}).then(() => {
+		// 				Logger.log(this.prefix, `Wrote User with (id=${ user.id }) into the database.`);
+		// 			});
+		// 		}
+		// 	});
+		// });
+	}
+
+	fetchUsers(userIDs) {
+		return new Promise((resolve, reject) => {
+			this.fb.ref("users").once("value", users_ss => {
+				if(!users_ss.exists()) {
+					reject("unable to fetch users");
+				} else {
+					var users = [];
+					var ids = [];
+					// push users if they exist in the database
+					users_ss.forEach(user_ss => {
+						ids.push(user_ss.key);
+						if(userIDs.includes(user_ss.key)) {
+							var userObj = user_ss.val();
+							users.push(shen.User(user_ss.key, userObj.nickname));
+						}
+					});
+					// second pass for users that don't exist in the database
+					userIDs.forEach(userID => {
+						if(!ids.includes(userID)) {
+							users.push(shen.User(userID));
+						}
+					});
+					resolve(users);
+				}
 			});
 		});
 	}
 
-	//== Tournament Methods ==//
+	discordLinkUser(userID, username) {
+		return this.write(Keys.user(userID) + "/discord", username);
+	}
 
-	fetchTournamentExists(tournamentID) {
-		return this.fetch(Keys.tournament(tournamentID)).then((snapshot) => {
-			return snapshot.exists();
+	// ==================================== //
+	// Tournament Functions //
+
+	/**
+	 * Writes a tournament into the database from an id and a game id.
+	 * This will initialize the tournament with no players and no matches.
+	 *
+	 * @param  {type} tournamentID description
+	 * @param  {type} title        description
+	 * @param  {type} gameID       description
+	 * @returns {type}              description
+	 */
+	addTournament(tournamentID, gameID) {
+		return this.write(Keys.tournament(tournamentID), {
+			game: gameID,
+			title: tournamentID
 		});
 	}
 
+	/**
+	 * Reads a tournament from an ID and constructs a tournament from other functions.
+	 * The order of what this function will read from the database is:
+	 *   1. Tournament information.
+	 *   2. The game the tournament is using.
+	 *   3. The players that are in the tournament.
+	 *   4. The matches that are related to this tournament.
+	 *
+	 * @param  {type} tournamentID description
+	 * @returns {type}              description
+	 */
 	fetchTournament(tournamentID) {
 		var title;
 		var gametype;
@@ -151,7 +250,7 @@ class FirebaseDatabase {
 		})
 		.then((gametype_) => { // get gametype
 			gametype = gametype_;
-			return this.fetchTournamentUsers(tournamentID);
+			return this.fetchTournamentPlayers(tournamentID);
 		})
 		.then((users_) => { // get users in tournament
 			users = users_;
@@ -170,19 +269,56 @@ class FirebaseDatabase {
 	}
 
 	/**
-	 * Writes an object of properties into a tournament.
+	 * Attempts to find a tournament with this ID. If successful, then returns true,
+	 * and false if not.
 	 *
 	 * @param  {type} tournamentID description
-	 * @param  {type} obj          description
 	 * @returns {type}              description
 	 */
-	writeTournamentProperties(tournamentID, obj) {
-		var promise = Promise.resolve();
-		Object.getOwnPropertyNames(obj).forEach(property => {
-			let key = `rankings/tournaments/${ tournamentID }/${ property }`;
-			promise.then(() => this.write(key, obj[property]));
+	fetchTournamentExists(tournamentID) {
+		return this.fetch(Keys.tournament(tournamentID)).then((snapshot) => {
+			return snapshot.exists();
 		});
-		return promise;
+	}
+
+	setTournamentGame(tournamentID, game) {
+		if(!(game instanceof Gametype))
+			throw new TypeError("Cannot set tournament game to a non-game.");
+
+		return this.write(Keys.tournamentGame(tournamentID), game.id);
+	}
+
+	setTournamentTitle(tournamentID, title) {
+		if(typeof title != "string")
+			throw new TypeError("Cannot set tournament title to a non-string.");
+
+		return this.write(Keys.tournamentTitle(tournamentID), title);
+	}
+
+	/**
+	 * Links this user to a tournament by its ID. After a user is linked to a tournament,
+	 * they will be considered a "player" of that tournament.
+	 *
+	 * @param {User}   user         The user to add.
+	 * @param {string} tournamentID The ID of the tournament to add this user to.
+	 *
+	 * @returns {undefined}
+	 */
+	addPlayer(user, tournamentID) {
+		console.log(user);
+		var key = Keys.tournamentPlayers(tournamentID);
+		return this.fetch(key)
+		.then(snapshot => {
+			var userIDs = [];
+			if(snapshot.exists()) {
+				userIDs = snapshot.val();
+			}
+			if(userIDs.indexOf(user.id) == -1) {
+				userIDs.push(user.id);
+			}
+			return this.write(key, userIDs, true);
+		});
+		//return this.write(Keys.tournamentPlayer(tournamentID, user.id), { rating: 0 });
 	}
 
 	writeNewMatch(obj) {
@@ -201,32 +337,7 @@ class FirebaseDatabase {
 		});
 	}
 
-	/**
-	 * Writes a tournament into the database from an id, a title, and a game id.
-	 * Initializes the tournament with no players and no matches.
-	 *
-	 * @param  {type} tournamentID description
-	 * @param  {type} title        description
-	 * @param  {type} gameID       description
-	 * @returns {type}              description
-	 */
-	writeTournament(tournamentID, gameID) {
-		return this.writeTournamentProperties(tournamentID, {
-			game: gameID,
-			title: tournamentID
-		});
-	}
-
-	/**
-	 * Writes a user as a player in a tournament by their user ID. If that user
-	 * is not actually a user, a warning will be given that a fake user will be used.
-	 */
-	writePlayer(tournamentID, userID) {
-		var key = `rankings/players/${ tournamentID }/${ userID }`;
-		return this.write(key, { rating: 0 });
-	}
-
-	writeMatch(tournamentID, userIDs, winners) {
+	createMatch(tournamentID, userIDs, winners) {
 		var time = Date.now();
 		return this.writeNewMatch({
 			tournament: tournamentID,
@@ -234,6 +345,10 @@ class FirebaseDatabase {
 			users: userIDs,
 			winners: winners
 		});
+	}
+
+	setMatchTime(matchID, time) {
+		return this.write(Keys.matchTime(matchID), time);
 	}
 
 	/**
@@ -257,7 +372,10 @@ class FirebaseDatabase {
 				var matchUsers   = [];
 				var matchRounds  = [];
 				var matchWinners = []; // if no rounds are found, we'll use this array to get winners
-				if(obj.tournament == null || obj.tournament == tournamentID) {
+				if(
+					obj.archived !== true &&
+					(obj.tournament == null || obj.tournament == tournamentID)
+				) {
 					// construct users
 					// obj.players.forEach(userID => {
 					// 	users.push(User.getUser(all_users, userID));
@@ -306,21 +424,30 @@ class FirebaseDatabase {
 		});
 	}
 
-	fetchTournamentUsers(tournamentID) {
-		var key = `rankings/players/${ tournamentID }`;
-		return this.fetch(key).then((snapshot) => {
-			if(!snapshot.exists()) { // silently return empty array
-				return [];
-			}
-			// collect user IDs in this tournament
-			var userIDs = [];
-			snapshot.forEach(child => { userIDs.push(child.key); });
+	// fetchTournamentUsers(tournamentID) {
+	// 	var key = `rankings/players/${ tournamentID }`;
+	// 	return this.fetch(key).then((snapshot) => {
+	// 		if(!snapshot.exists()) { // silently return empty array
+	// 			return [];
+	// 		}
+	// 		// collect user IDs in this tournament
+	// 		var userIDs = [];
+	// 		snapshot.forEach(child => { userIDs.push(child.key); });
+	//
+	// 		// return users
+	// 		return this.fetchUsers(userIDs);
+	// 	});
+	// }
 
-			// return users
-			return this.fetchUsers(userIDs);
-		});
-	}
-
+	/**
+	 * Reads the players that are in a tournament, and returns an array of players.
+	 * In the case where the tournament exists but it still can't find any players,
+	 * then an empty array will be returned.
+	 *
+	 * @throws {ReferenceError} if the tournamentID provided doesn't exist.
+	 * @param  {string} tournamentID The ID of the tournament.
+	 * @returns {Player[]} An array of players.
+	 */
 	fetchTournamentPlayers(tournamentID) {
 		return this.fetchTournamentExists(tournamentID)
 		.then(exists => {
@@ -331,8 +458,17 @@ class FirebaseDatabase {
 			if(!snapshot.exists()) { // this shouldn't happen but if it does,
 				return []; // return an empty array
 			}
+			let userIDs = [];
+			snapshot.forEach(child => {
+				let userID = child.val();
+				userIDs.push(userID);
+			});
+			return this.fetchUser(userIDs);
 		});
 	}
+
+	// ==================================== //
+	// Game Functions //
 
 	fetchGametype(gameID) {
 		var key = `games/${ gameID }`;
@@ -341,61 +477,22 @@ class FirebaseDatabase {
 			if(!snapshot.exists())
 				throw new ReferenceError(`The gametype with ID ${ gameID } does not exist.`);
 
-			var gametypeObj = snapshot.val();
-			var title = gametypeObj.title;
-			return shen.Gametype(gameID, title);
-		});
-	}
-
-	writeUser(user) {
-		return new Promise((_resolve, reject) => {
-			// reference to a user model
-			var ref = this.fb.ref(`users/${ user.id }`);
-			ref.once("value", (snapshot) => {
-				// check if this user already is in the database
-				if(snapshot.exists()) {
-					// reject the promise
-					Logger.log(this.prefix, `Tried to write User (id=${ user.id }), but that user already exists. (use updateUser()?)`);
-					reject("The user with this ID already exists.");
-				} else {
-					// this user doesn't exist, so write the user
-					// into the database
-					return ref.set({
-						nickname: user.nickname
-					}).then(() => {
-						Logger.log(this.prefix, `Wrote User with (id=${ user.id }) into the database.`);
-					});
-				}
+			var obj = snapshot.val();
+			var title =      obj.title;
+			var characters = obj.character;
+			var stages =     obj.stage;
+			return new Game({
+				id: snapshot.key,
+				title: title,
+				compatabilities: ["character", "stage"], // TODO: read this from the database
+				characters: characters,
+				stages: stages,
 			});
 		});
 	}
 
-	fetchUsers(userIDs) {
-		return new Promise((resolve, reject) => {
-			this.fb.ref("users").once("value", users_ss => {
-				if(!users_ss.exists()) {
-					reject("unable to fetch users");
-				} else {
-					var users = [];
-					var ids = [];
-					// push users if they exist in the database
-					users_ss.forEach(user_ss => {
-						ids.push(user_ss.key);
-						if(userIDs.includes(user_ss.key)) {
-							var userObj = user_ss.val();
-							users.push(shen.User(user_ss.key, userObj.nickname));
-						}
-					});
-					// second pass for users that don't exist in the database
-					userIDs.forEach(userID => {
-						if(!ids.includes(userID)) {
-							users.push(shen.User(userID));
-						}
-					});
-					resolve(users);
-				}
-			});
-		});
+	writeGameProperty(gameID, property, value) {
+		return this.write(Keys.gameProperty(gameID, property), value);
 	}
 }
 

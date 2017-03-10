@@ -138,6 +138,9 @@ class Ranker {
 			stats = stats.incrementWins();
 			// get rating adjustment using Elo
 			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, division.k) * division.gain * bonus);
+			if(stats.matches.length > 3) {
+				stats = stats.adjustPoints(adjustment);
+			}
 		} else { // user lost
 			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 0, division.k) * division.loss * bonus);
 		}
@@ -145,6 +148,7 @@ class Ranker {
 		// apply floor value
 		if(stats.rating + adjustment < this.floor) {
 			adjustment = this.floor - stats.rating;
+			stats = stats.adjustPoints(0);
 		}
 
 		console.log("rating adjustment: " + adjustment);

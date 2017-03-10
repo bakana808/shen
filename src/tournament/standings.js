@@ -56,7 +56,11 @@ class TournamentStandings {
 
 		// then sort the cloned array by rating (decreasing)
 		users.sort((a, b) => {
-			return this.rating(b) - this.rating(a);
+			if(this.rating(b) !== this.rating(a)) {
+				return this.rating(b) - this.rating(a);
+			} else {
+				return this.getStats(b).winrate - this.getStats(a).winrate;
+			}
 		});
 
 		return users;

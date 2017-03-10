@@ -30,5 +30,24 @@
   "bugs": {
     "url": "https://github.com/leecccc/shen-server/issues"
   },
-  "homepage": "https://github.com/leecccc/shen-server#readme"
+  "homepage": "https://github.com/leecccc/shen-server#readme",
+  "eslintConfig": {
+      "env": {
+          "browser": true,
+          "node": true,
+          "es6": true
+      },
+      "extends": "eslint:recommended",
+      "parserOptions": {
+          "sourceType": "module"
+      },
+      "rules": {
+          "no-unused-vars": ["warn", {"vars": "all", "args": "all", "argsIgnorePattern": "^_"}],
+          "indent": ["error", "tab"],
+          "linebreak-style": ["error", "windows"],
+          "quotes": ["error", "double"],
+          "semi": ["error", "always"],
+          "no-console": 0
+      }
+  }
 }

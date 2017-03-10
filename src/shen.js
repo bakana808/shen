@@ -133,6 +133,26 @@ class shen {
 	}
 
 	/**
+	 * Constructs a game.
+	 *
+	 * @param {object}   obj                 The object representing this tournament.
+	 * @param {string}   obj.id              The identifier for this game.
+	 * @param {string}   obj.title           The title of this game.
+	 * @param {string[]} obj.compatabilities The supported statistics of this game.
+	 *
+	 * = CHARACTER SUPPORT =
+	 * @param {object}   obj.characters      The characters in this game.
+	 *
+	 * = STAGE SUPPORT =
+	 * @param {object}   obj.stages          The stages in this game.
+	 *
+	 * @returns {Game}
+	 */
+	static Game(obj) {
+		return new Gametype(obj);
+	}
+
+	/**
 	 * Constructs a tournament.
 	 *
 	 * @param {object}   obj         The object representing this tournament.
