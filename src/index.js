@@ -19,6 +19,9 @@ var DiscordCommands =  require("./discord/commands");
 var User =             require("./user");
 var ApiRouter =        require("./router/api");
 
+// run dotenv to load variables from .env
+require("dotenv").config();
+
 //== config object -- holds environment variables ==/
 var config = {
 	firebase: {

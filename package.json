@@ -12,6 +12,8 @@
     "url": "git+https://github.com/leecccc/shen-server.git"
   },
   "dependencies": {
+    "dotenv": "4.0.0",
+
     "discord.js": "^11.0.0",
 
     "firebase": "3.5.0",
