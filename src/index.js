@@ -40,14 +40,23 @@ shen.useDatabase(new FirebaseDatabase(config.firebase.email, config.firebase.id,
 //== initalize discord bot ==//
 var bot = new DiscordBot(config.discord.botToken);
 
-bot.registerCommand("!debug",     DiscordCommands.debug);
-bot.registerCommand("!info",      DiscordCommands.tournamentInfo);
-bot.registerCommand("!stats",     DiscordCommands.playerStats);
-bot.registerCommand(".history",   DiscordCommands.playerHistory);
-bot.registerCommand(".standings", DiscordCommands.tournamentRankings);
-bot.registerCommand(".tourny",         DiscordCommands.tournament);
-bot.registerCommand(".current",   DiscordCommands.setCurrentTournament);
-bot.registerCommand(".adduser",   DiscordCommands.addUser);
+Object.getOwnPropertyNames(DiscordCommands).forEach(key => {
+	if(typeof DiscordCommands[key] == "function") {
+		bot.registerCommand("." + key.toLowerCase(), DiscordCommands[key]);
+	}
+});
+
+// bot.registerCommand("!debug",     DiscordCommands.debug);
+// bot.registerCommand("!info",      DiscordCommands.tournamentInfo);
+// bot.registerCommand("!stats",     DiscordCommands.playerStats);
+// bot.registerCommand(".history",   DiscordCommands.playerHistory);
+// bot.registerCommand(".standings", DiscordCommands.tournamentRankings);
+// bot.registerCommand(".tourny",    DiscordCommands.tournament);
+// bot.registerCommand(".current",   DiscordCommands.setCurrentTournament);
+// bot.registerCommand(".adduser",   DiscordCommands.addUser);
+// bot.registerCommand(".linkuser",  DiscordCommands.linkUser);
+// bot.registerCommand(".g", DiscordCommands.game);
+// bot.registerCommand(".killme", DiscordCommands.killme);
 
 // == initialize express == //
 

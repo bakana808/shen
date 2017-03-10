@@ -117,7 +117,7 @@ class DiscordCommands {
 	}
 
 	// prints player statistics
-	static playerStats(_author, channel, args) {
+	static stats(_author, channel, args) {
 		if(args.length == 2) {
 			var tournamentId = args[0];
 			var userid = args[1];
@@ -167,7 +167,7 @@ class DiscordCommands {
 	}
 
 	// prints info on the current tournament
-	static tournamentInfo(_author, channel, args) {
+	static tinfo(_author, channel, args) {
 		if(args.length == 0) {
 			channel.sendMessage(outdent`
 				\`\`\`md
@@ -211,7 +211,7 @@ class DiscordCommands {
 	/**
 	 * Game management commands
 	 */
-	static game(member, channel, args) {
+	static g(member, channel, args) {
 		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
 			return; // lock out any user that is not a server admin
 		}
@@ -295,7 +295,7 @@ class DiscordCommands {
 	 * @param  {type} args    description
 	 * @returns {type}         description
 	 */
-	static tournament(member, channel, args) {
+	static t(member, channel, args) {
 		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
 			return; // lock out any user that is not a server admin
 		}
@@ -403,7 +403,7 @@ class DiscordCommands {
 	}
 
 	// prints player history for the current tournament
-	static playerHistory(_author, channel, args) {
+	static history(_author, channel, args) {
 		var tournamentId = null, userId = null, promise = null;
 		// 1 arg - use the current tournament
 		if(args.length == 1 && Static.tournament != null) {
@@ -446,7 +446,7 @@ class DiscordCommands {
 	}
 
 	// prints the rankings for the current tournament
-	static tournamentRankings(_author, channel, args) {
+	static rankings(_author, channel, args) {
 		var promise = null;
 		if(args.length == 0) { // use the static tournament
 			promise = Promise.resolve(Static.tournament);
