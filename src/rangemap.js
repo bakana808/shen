@@ -12,16 +12,12 @@ class RangeMap {
 		this.obj  = obj;
 		this.keys = Object.keys(this.obj);
 
-		var i = -1;
-
 		// retrieve default value from "0" or "default"
-		if((i = this.keys.indexOf("0")) > -1) {
+		if(this.keys.indexOf("0") > -1) {
 			this.default = this.obj["0"];
-			this.keys = this.keys.splice(i, 1);
 		}
-		if((i = this.keys.indexOf("default")) > -1) {
+		if(this.keys.indexOf("default") > -1) {
 			this.default = this.obj["default"];
-			this.keys = this.keys.splice(i, 1);
 		}
 
 		// sort remaining keys numerically
@@ -35,7 +31,9 @@ class RangeMap {
 
 		} else {
 			this.keys.forEach(startKey => {
-				if((+key) >= (+startKey)) { value = this.obj[startKey]; }
+				if(startKey != "0" && startKey != "default") {
+					if((+key) >= (+startKey)) { value = this.obj[startKey]; }
+				}
 			});
 		}
 
