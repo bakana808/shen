@@ -1,23 +1,18 @@
 
-// external modules
-var passport =        require("passport");
+var passport        = require("passport");
 var DiscordStrategy = require("passport-discord").Strategy;
+var express         = require("express");
+var cookieParser    = require("cookie-parser");
+var session         = require("express-session");
 
-var express  =     require("express");
-var app      =     express();
-var cookieParser = require("cookie-parser");
-var session =      require("express-session");
-
-//var bodyParser = require("body-parser");
-//var methodOverride = require("method-override");
-
-// local modules
-var shen =             require("./shen");
+var shen             = require("./shen");
 var FirebaseDatabase = require("./database/firebase");
-var DiscordBot =       require("./discord/bot");
-var DiscordCommands =  require("./discord/commands");
-var User =             require("./user");
-var ApiRouter =        require("./router/api");
+var DiscordBot       = require("./discord/bot");
+var DiscordCommands  = require("./discord/commands");
+var User             = require("./user");
+var ApiRouter        = require("./router/api");
+
+//region// Environment Variables ///////////////////////////////////////////////
 
 // run dotenv to load variables from .env
 require("dotenv").config();
@@ -25,22 +20,30 @@ require("dotenv").config();
 //== config object -- holds environment variables ==/
 var config = {
 	firebase: {
-		email: process.env.FIREBASE_CLIENT_EMAIL,
-		key: process.env.FIREBASE_PRIVATE_KEY,
-		id: process.env.FIREBASE_PROJECT_ID,
+		email:       process.env.FIREBASE_CLIENT_EMAIL,
+		key:         process.env.FIREBASE_PRIVATE_KEY,
+		id:          process.env.FIREBASE_PROJECT_ID,
 		databaseURL: process.env.FIREBASE_DATABASE_URL
 	},
 	discord: {
-		id: process.env.DISCORD_CLIENT_ID,
-		secret: process.env.DISCORD_CLIENT_SECRET,
+		id:       process.env.DISCORD_CLIENT_ID,
+		secret:   process.env.DISCORD_CLIENT_SECRET,
 		botToken: process.env.DISCORD_BOT_TOKEN
-	}
+	},
+	port: isNaN(process.env.PORT) ? 5000 : process.env.PORT
 };
 
-//== set database to firebase ==//
+//endregion//
+
+//region// Shen API ////////////////////////////////////////////////////////////
+
+// set database to use with shen API
 shen.useDatabase(new FirebaseDatabase(config.firebase.email, config.firebase.id, config.firebase.databaseURL, config.firebase.key));
 
-//== initalize discord bot ==//
+//endregion//
+
+//region// Discord Bot /////////////////////////////////////////////////////////
+
 var bot = new DiscordBot(config.discord.botToken);
 
 Object.getOwnPropertyNames(DiscordCommands).forEach(key => {
@@ -49,19 +52,9 @@ Object.getOwnPropertyNames(DiscordCommands).forEach(key => {
 	}
 });
 
-// bot.registerCommand("!debug",     DiscordCommands.debug);
-// bot.registerCommand("!info",      DiscordCommands.tournamentInfo);
-// bot.registerCommand("!stats",     DiscordCommands.playerStats);
-// bot.registerCommand(".history",   DiscordCommands.playerHistory);
-// bot.registerCommand(".standings", DiscordCommands.tournamentRankings);
-// bot.registerCommand(".tourny",    DiscordCommands.tournament);
-// bot.registerCommand(".current",   DiscordCommands.setCurrentTournament);
-// bot.registerCommand(".adduser",   DiscordCommands.addUser);
-// bot.registerCommand(".linkuser",  DiscordCommands.linkUser);
-// bot.registerCommand(".g", DiscordCommands.game);
-// bot.registerCommand(".killme", DiscordCommands.killme);
+//endregion//
 
-// == initialize express == //
+//region// Passport (Authentication) ///////////////////////////////////////////
 
 passport.serializeUser((user, done) => {
 	done(null, user.id);
@@ -86,6 +79,13 @@ passport.use(new DiscordStrategy({
 	});
 }));
 
+//endregion//
+
+//region// Express (Web Application) ///////////////////////////////////////////
+
+const app =  express();
+const port = config.port;
+
 //app.engine("html", require("ejs").renderFile);
 app.set("view engine", "ejs");
 app.set("json replacer", null);
@@ -99,13 +99,14 @@ app.use(session({ secret: "persist123" }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// find the port to host this app (5000 by default)
-var port = process.env.PORT === null ? process.env.PORT : 5000;
+//endregion//
+
+//region// Express Routes //////////////////////////////////////////////////////
 
 // route all API calls to the API router
 app.use("/api", (new ApiRouter(express.Router())).router);
 
-//== authentication routes ==//
+// OAuth Discord authentication routes
 app.get("/auth",
 	passport.authenticate("discord", { scope: "identify" })
 );
@@ -113,7 +114,7 @@ app.get("/auth/callback",
 	passport.authenticate("discord", { failureRedirect: "/", successRedirect: "/profile" })
 );
 
-//== user profile route ==//
+// user-related routes
 app.get("/profile", (req, res) => {
 	var user = req.user;
 	if(user == null) {
@@ -123,5 +124,6 @@ app.get("/profile", (req, res) => {
 	}
 });
 
-// start the server
+//endregion//
+
 app.listen(port);
