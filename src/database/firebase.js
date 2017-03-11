@@ -224,6 +224,31 @@ class FirebaseDatabase {
 	}
 
 	/**
+	 * Reads the ID of the "active" tournament.
+	 *
+	 * @return {Promise<string>} A promise to the tournament ID.
+	 */
+	fetchActiveTournamentID() {
+		return this.fetch(Keys.activeTournament)
+		.then(snapshot => {
+			if(!snapshot.exists()) {
+				throw new ReferenceError("The Active Tournament does not exist.");
+			} else {
+				return snapshot.val();
+			}
+		});
+	}
+
+	/**
+	 * Writes the ID of the "active" tournament.
+	 *
+	 * @return {Promise} A promise that resolves to nothing.
+	 */
+	writeActiveTournamentID(tournamentID) {
+		return this.write(Keys.activeTournament, tournamentID);
+	}
+
+	/**
 	 * Reads a tournament from an ID and constructs a tournament from other functions.
 	 * The order of what this function will read from the database is:
 	 *   1. Tournament information.

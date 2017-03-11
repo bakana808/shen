@@ -34,6 +34,20 @@ class shen {
 
 	//region// Tournament Functions ////////////////////////////////////////////
 
+	/**
+	 * @static
+	 * Returns the "active" tournament. The active tournament is the tournament
+	 * that usually gets loaded first.
+	 *
+	 * @return {Promise<Tournament>} A promise to a tournament.
+	 */
+	static fetchActiveTournament() {
+		return shen.db.fetchActiveTournamentID()
+		.then(tournamentID => {
+			return shen.db.fetchTournament(tournamentID);
+		});
+	}
+
 	static fetchTournament(tournamentId) {
 		return shen.db.fetchTournament(tournamentId);
 	}

@@ -40,6 +40,9 @@ var config = {
 // set database to use with shen API
 shen.useDatabase(new FirebaseDatabase(config.firebase.email, config.firebase.id, config.firebase.databaseURL, config.firebase.key));
 
+// load active tournament
+DiscordCommands.static.tournament = shen.fetchActiveTournament();
+
 //endregion//
 
 //region// Discord Bot /////////////////////////////////////////////////////////

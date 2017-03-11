@@ -11,6 +11,7 @@ const Keys = exports.Keys = {
 	user: (userID) => `${Keys.users}/${userID}`,
 
 	// tournaments
+	activeTournament: "rankings/active-tournament",
 	tournaments: "rankings/tournaments",
 	tournament: (tournamentID) => `${Keys.tournaments}/${tournamentID}`,
 	tournamentGame:    (tournamentID) => `${Keys.tournament(tournamentID)}/game`,

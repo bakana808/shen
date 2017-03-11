@@ -503,6 +503,6 @@ class DiscordCommands {
 	}
 }
 
-DiscordCommands.activeTournament = null;
+DiscordCommands.static = Static;
 
 module.exports = DiscordCommands;
