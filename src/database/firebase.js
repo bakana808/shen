@@ -102,8 +102,7 @@ class FirebaseDatabase {
 		});
 	}
 
-	// ==================================== //
-	// General Functions //
+	//region// General Functions ///////////////////////////////////////////////
 
 	fetchUser(userIDs) {
 		// do some type checking
@@ -204,8 +203,9 @@ class FirebaseDatabase {
 		return this.write(Keys.user(userID) + "/discord", username);
 	}
 
-	// ==================================== //
-	// Tournament Functions //
+	//endregion//
+
+	//region// Tournament Database Functions ///////////////////////////////////
 
 	/**
 	 * Writes a tournament into the database from an id and a game id.
@@ -282,7 +282,7 @@ class FirebaseDatabase {
 	}
 
 	setTournamentGame(tournamentID, game) {
-		if(!(game instanceof Gametype))
+		if(!(game instanceof Game))
 			throw new TypeError("Cannot set tournament game to a non-game.");
 
 		return this.write(Keys.tournamentGame(tournamentID), game.id);
@@ -467,8 +467,9 @@ class FirebaseDatabase {
 		});
 	}
 
-	// ==================================== //
-	// Game Functions //
+	//endregion//
+
+	//region// Game Database Functions /////////////////////////////////////////
 
 	fetchGametype(gameID) {
 		var key = `games/${ gameID }`;
@@ -494,6 +495,8 @@ class FirebaseDatabase {
 	writeGameProperty(gameID, property, value) {
 		return this.write(Keys.gameProperty(gameID, property), value);
 	}
+
+	//endregion//
 }
 
 module.exports = FirebaseDatabase;
