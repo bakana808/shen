@@ -1,6 +1,4 @@
 
-var shen = require("../shen");
-
 /**
  * Represents a map of values that is based on a range of numbers rather than
  * one value as the key. This type of map will only accept numbers as keys.
@@ -11,27 +9,37 @@ var shen = require("../shen");
  */
 class RangeMap {
 	constructor(obj) {
-		this.obj = obj;
+		this.obj  = obj;
+		this.keys = Object.keys(this.obj);
+
+		var i = -1;
+
+		// retrieve default value from "0" or "default"
+		if((i = this.keys.indexOf("0")) > -1) {
+			this.default = this.obj["0"];
+			this.keys = this.keys.splice(i, 1);
+		}
+		if((i = this.keys.indexOf("default")) > -1) {
+			this.default = this.obj["default"];
+			this.keys = this.keys.splice(i, 1);
+		}
+
+		// sort remaining keys numerically
+		this.keys.sort((a, b) => { return a - b; });
 	}
 
-	get(rating) {
-		if(typeof this.obj === "number") {
-			return this.obj;
-		}
-		if(typeof this.obj === "object") {
-			var keys = Object.keys(this.obj);
-			var value = this.obj["0"];
-			//Logger.log("elo", "keys = " + keys);
-			keys.sort((a, b) => { return a - b; });
-			keys.forEach((key) => {
-				//console.log("rating = " + rating + " key = " + key);
-				if(+rating >= +key) {
-					value = this.obj[key];
-				}
-			});
-			//Logger.log("elo", "rating = " + rating + ", got value " + value);
+	get(key) {
+		var value = this.default;
+		if(this.keys.length == 0) {
 			return value;
+
+		} else {
+			this.keys.forEach(startKey => {
+				if((+key) >= (+startKey)) { value = this.obj[startKey]; }
+			});
 		}
+
+		return value;
 	}
 }
 
