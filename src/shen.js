@@ -1,48 +1,38 @@
 
-var math = require("mathjs");
-
 var Logger = require("./util/logger");
-var Scoreboard = require("./scoreboard");
 var Ranker = require("./ranker");
 
 var User = require("./user");
-//var Player = require("./player");
 
-var Round =       require("./match/round");
-var Match =       require("./match");
-var MatchSeries = require("./match/series");
-
-var Gametype = require("./gametype");
-
-var Tournament =     require("./tournament");
-var UserStatistics = require("./tournament/statistics");
-var TournamentStandings =        require("./tournament/standings");
+var Round                      = require("./match/round");
+var Match                      = require("./match");
+var MatchSeries                = require("./match/series");
+var Gametype                   = require("./gametype");
+var Tournament                 = require("./tournament");
+var UserStatistics             = require("./tournament/statistics");
+var TournamentStandings        = require("./tournament/standings");
 var TournamentStandingsHistory = require("./tournament/history");
 
+/**
+ * Contains all the basic API functions of this application.
+ */
 class shen {
 	constructor() {
 		shen.db = null;
 	}
 
-	// /**
-	//  * Logs a message to the console. If two arguments are used,
-	//  * the first argument will be used as the prefix.
-	//  */
-	// static log(lmsg, rmsg, level = "INFO") {
-	// 	if(rmsg == null) {
-	// 		console.log(`[${level}] ${lmsg}`);
-	// 	} else {
-	// 		console.log(`[${level}] ${rmsg}`);
-	// 	}
-	// }
-	//
-	// static info(lmsg, rmsg)  { Logger.log(lmsg, rmsg, "INFO"); }
-	// static warn(lmsg, rmsg)  { Logger.log(lmsg, rmsg, "WARN"); }
-	// static error(lmsg, rmsg) { Logger.log(lmsg, rmsg, "ERROR"); }
-
+	/**
+	 * @static
+	 * Defines which database this API should use. All further functions that
+	 * use a database will use this one.
+	 *
+	 * @param  {Database} database The database to use.
+	 */
 	static useDatabase(database) {
 		shen.db = database;
 	}
+
+	//region// Tournament Functions ////////////////////////////////////////////
 
 	static fetchTournament(tournamentId) {
 		return shen.db.fetchTournament(tournamentId);
@@ -64,6 +54,10 @@ class shen {
 		return shen.db.fetchTournamentUserIds(tournamentId);
 	}
 
+	//endregion//
+
+	//region// User Functions //////////////////////////////////////////////////
+
 	static fetchUser(userid) {
 		return shen.db.fetchUser(userid).then(users => {
 			if(users.length == 0) // user doesn't exist
@@ -80,33 +74,9 @@ class shen {
 		return shen.db.writeUser(userid);
 	}
 
-	static bestOf(n, scores) {
-		//var odd = n % 2; // if odd is 1, then a tie is impossible
-		var scoreToWin = math.ceil(n / 2);
-		var winners = [];
-		Object.keys(scores).forEach((userid) => {
-			if(scores[userid] >= scoreToWin) {
-				winners.push(userid);
-			}
-		});
-		return winners;
-	}
+	//endregion//
 
-	// static scoreboard(scoreMap, bestOf) {
-	// 	var score_to_win = math.ceil(bestOf / 2);
-	// 	return Scoreboard.create(scoreMap, (userid, score) => (score >= score_to_win));
-	// }
-
-	/**
-	 * Returns the argument if it is already an array, but converts it into
-	 * an array containing the argument otherwise.
-	 *
-	 * @returns {*[]} an array
-	 */
-	static toArray(a) {
-		if(a instanceof Array) { return a; }
-		return [a];
-	}
+	//region// Object Constructors /////////////////////////////////////////////
 
 	/**
 	 * Constructs a new User object, given an ID and nickname.
@@ -256,6 +226,32 @@ class shen {
 	// static TournamentSnapshot(tournament) {
 	//
 	// }
+
+	//endregion//
+
+	static bestOf(n, scores) {
+		//var odd = n % 2; // if odd is 1, then a tie is impossible
+		var scoreToWin = Math.ceil(n / 2);
+		var winners = [];
+		Object.keys(scores).forEach((userid) => {
+			if(scores[userid] >= scoreToWin) {
+				winners.push(userid);
+			}
+		});
+		return winners;
+	}
+
+	/**
+	 * Returns the argument if it is already an array, but converts it into
+	 * an array containing the argument otherwise.
+	 *
+	 * @returns {*[]} an array
+	 */
+	static toArray(a) {
+		if(a instanceof Array) { return a; }
+		return [a];
+	}
+
 	/**
 	 * Merges two option objects a and b, where b overwrites a.
 	 * @return {object} the merged options object
@@ -267,7 +263,7 @@ class shen {
 		if(typeof b !== "object") {
 			throw new TypeError("Options is not an object.");
 		}
-		a.forEach((v, k) => { if(k in b) a[k] = b[k]; });
+		a.forEach((_v, k) => { if(k in b) a[k] = b[k]; });
 	}
 }
 
