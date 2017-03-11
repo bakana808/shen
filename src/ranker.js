@@ -1,7 +1,7 @@
 
 var Elo =     require("./elo");
 var Options = require("./util/options");
-//var RangeMap = require("./rangemap");
+var RangeMap = require("./rangemap");
 
 /**
  * Represents a rating division. This is aimed at grouping players by similar
@@ -21,11 +21,6 @@ class Division {
 		 * @type {string}
 		 */
 		Object.defineProperty(this, "name", {value: options.name});
-		/**
-		 * The skill rating that a player has to reach to be in this division.
-		 * @type {string}
-		 */
-		Object.defineProperty(this, "start", {value: options.start});
 		/**
 		 * The K-factor to use when in this division.
 		 * @type {number}
@@ -55,15 +50,15 @@ class Ranker {
 		options = Options.merge({
 			floor:   950,
 			initial: 1000, // the initial rating for users
-			divisions: [
-				new Division({name: "C", start: 0,    k: 48}),
-				new Division({name: "B", start: 1000, k: 32}),
-				new Division({name: "A", start: 1050, k: 24}),
-				new Division({name: "S", start: 1100, k: 16})
-			]
+			divisions: new RangeMap({
+				0:    new Division({name: "C", k: 48}),
+				1000: new Division({name: "B", k: 32}),
+				1050: new Division({name: "A", k: 24}),
+				1100: new Division({name: "S", k: 16})
+			})
 		}, options);
 		// sort the divisions array first by starting ratings
-		options.divisions.sort((a, b) => { return a.start - b.start; });
+		//options.divisions.sort((a, b) => { return a.start - b.start; });
 
 		/**
 		 * The Elo instance, which handles all basic Elo functions.
@@ -87,12 +82,9 @@ class Ranker {
 	 * @returns {type}        description
 	 */
 	getDivision(rating = 0) {
-		var match = this.divisions[0]; // the division to use
-		this.divisions.forEach(division => {
-			// use this division if the rating is at least the start of the division
-			if(rating >= division.start) match = division;
-		});
-		return match;
+		let division = this.divisions.get(rating);
+		//console.log(`Rating ${rating} => Division ${division.name}`);
+		return division;
 	}
 
 	/**
