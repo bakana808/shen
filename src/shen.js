@@ -80,6 +80,10 @@ class shen {
 		});
 	}
 
+	static fetchUserFromDiscordID(discordID) {
+		return shen.db.fetchUserFromDiscordID(discordID);
+	}
+
 	static fetchUsers(userIds) {
 		return shen.db.fetchUser(userIds);
 	}

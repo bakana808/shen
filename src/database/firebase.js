@@ -104,6 +104,22 @@ class FirebaseDatabase {
 
 	//region// General Functions ///////////////////////////////////////////////
 
+	/**
+	 * Initializes a user by a user ID and an object representing the user.
+	 * If the object is null or is missing any of the required keys, then it will
+	 * construct a "dummy" user.
+	 *
+	 * @param  {type} userID         The ID of the user.
+	 * @param  {type} userObj = null The object representing the user.
+	 * @return {User} A user.
+	 */
+	constructUser(userID, userObj = null) {
+		if(userObj != null && userObj.nickname != null) {
+			return shen.User(userID, userObj.nickname);
+		}
+		return shen.User(userID);
+	}
+
 	fetchUser(userIDs) {
 		// do some type checking
 		if(!(userIDs instanceof Array)) { // create single user
@@ -124,13 +140,11 @@ class FirebaseDatabase {
 				userIDs.forEach(userID => {
 					var userSnapshot = snapshot.child(userID);
 					if(userSnapshot.exists()) {
-						// read information from the database
-						var userObject = userSnapshot.val();
-						users.push(shen.User(userID, userObject.nickname));
+						users.push(this.constructUser(userID, userSnapshot.val()));
 					} else {
 						// warn and create dummy User
 						Logger.warn(`User with ID ${ userID } does not exist in the database.`);
-						users.push(shen.User(userID));
+						users.push(this.constructUser(userID, null));
 					}
 				});
 				return users;
@@ -200,7 +214,7 @@ class FirebaseDatabase {
 	}
 
 	discordLinkUser(userID, username) {
-		return this.write(Keys.user(userID) + "/discord", username);
+		return this.write(Keys.user(userID) + "/discord", username, true);
 	}
 
 	//endregion//
@@ -519,6 +533,36 @@ class FirebaseDatabase {
 
 	writeGameProperty(gameID, property, value) {
 		return this.write(Keys.gameProperty(gameID, property), value);
+	}
+
+	//endregion//
+
+	//region// Discord Database Functions //////////////////////////////////////
+
+	/**
+	 * Attempts to find a user that is linked to the provided Discord user ID.
+	 * If none of the IDs match, the promise will reject.
+	 *
+	 * @param  {string} discordID The ID of the Discord user.
+	 * @return {Promise<User>} A promise to a user.
+	 */
+	fetchUserFromDiscordID(discordID) {
+		return this.fetch(Keys.users).then(snapshot => {
+			if(!snapshot.exists())
+				throw new ReferenceError("Unable to read Users from database.");
+			let user = null;
+			snapshot.forEach(userSnapshot => {
+				let userID = userSnapshot.key;
+				let userObj = userSnapshot.val();
+				if(userObj.discord == discordID) {
+					user = this.constructUser(userID, userObj);
+					return false;
+				}
+			});
+			if(user == null)
+				throw new ReferenceError("You are not linked to a Shen account.");
+			return user;
+		});
 	}
 
 	//endregion//

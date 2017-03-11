@@ -403,8 +403,20 @@ class DiscordCommands {
 	}
 
 	// prints player history for the current tournament
-	static history(_author, channel, args) {
+	static history(member, channel, args) {
 		var tournamentId = null, userId = null, promise = null;
+		// no args - try to find the user this member is linked to
+		if(args.length == 0 && Static.tournament != null) {
+			promise = shen.fetchUserFromDiscordID(member.id).then(user => {
+				userId = user.id;
+				return Static.tournament;
+			})
+			.catch(error => {
+				channel.sendMessage("I can't see your match history. Are you linked to a Shen account?");
+				channel.sendMessage("Try getting the match history of a specific player: `.history <username>` :thumbsup:");
+				console.log(error.stack);
+			});
+		}
 		// 1 arg - use the current tournament
 		if(args.length == 1 && Static.tournament != null) {
 			userId = args[0];
@@ -421,22 +433,24 @@ class DiscordCommands {
 		// then the current promise if any
 		if(promise != null) {
 			promise.then(tournament => {
-				var user = tournament.getUser(userId);
-				var stats = tournament.standings.latest().getStats(user);
+				if(userId != null) {
+					var user = tournament.getUser(userId);
+					var stats = tournament.standings.latest().getStats(user);
 
-				channel.sendMessage(`printing match history for **${ user.nickname }**`);
-				var message = "```diff\n";
-				//var count = 0;
-				stats.matches.forEach(match => {
-					var label = match.getUserByOrder(0).nickname + " vs. " + match.getUserByOrder(1).nickname;
-					if(match.isWinner(user)) {
-						message += "+| Match " + match.id + " - " + label + "\n";
-					} else {
-						message += "-| Match " + match.id + " - " + label + "\n";
-					}
-				});
-				message += "```";
-				channel.sendMessage(message);
+					channel.sendMessage(`printing match history for **${ user.nickname }**`);
+					var message = "```diff\n";
+					//var count = 0;
+					stats.matches.forEach(match => {
+						var label = match.getUserByOrder(0).nickname + " vs. " + match.getUserByOrder(1).nickname;
+						if(match.isWinner(user)) {
+							message += "+| Match " + match.id + " - " + label + "\n";
+						} else {
+							message += "-| Match " + match.id + " - " + label + "\n";
+						}
+					});
+					message += "```";
+					channel.sendMessage(message);
+				}
 			})
 			.catch(error => {
 				Logger.log("error", error);
