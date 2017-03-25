@@ -116,7 +116,17 @@ class Ranker {
 			division = this.getDivision(stats.rating);
 		}
 
-		//stats = stats.incrementTotalMatches();
+		// check for division override /////////////////////////////////////////
+
+		var k_override = -1;
+
+		if("win-k" in match.obj) {
+			//k_override = match.obj["win-k"];
+			k_override = division.k * 1.5;
+			console.log("This match has a K override of " + k_override);
+		}
+
+		//stats = stats.incrementTotalMatches();-m
 		//var division = this.getDivision(stats.rating);
 		var opponent = match.getOpponents(stats.user)[0];
 		var opponentRating = standings.getStats(opponent).rating;
@@ -129,7 +139,12 @@ class Ranker {
 		if(match.isWinner(stats.user)) { // user won
 			stats = stats.incrementWins();
 			// get rating adjustment using Elo
-			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, division.k) * division.gain * bonus);
+			if(k_override > 0) { // use the k override value
+				adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, k_override) * division.gain * bonus);
+			} else {
+				adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, division.k) * division.gain * bonus);
+			}
+
 			if(stats.matches.length > 3) {
 				stats = stats.adjustPoints(adjustment);
 			}
