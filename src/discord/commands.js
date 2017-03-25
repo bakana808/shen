@@ -462,58 +462,61 @@ class DiscordCommands {
 	// prints the rankings for the current tournament
 	static rankings(_author, channel, args) {
 		var promise = null;
-		if(args.length == 0) { // use the static tournament
+		if(args.length == 0 && Static.tournament != null) { // use the static tournament
 			promise = Promise.resolve(Static.tournament);
 		}
 		if(args.length >= 1) { // find another tournament
 			let tournamentId = args[0];
 			promise = shen.fetchTournament(tournamentId);
 		}
-		if(promise != null) {
-			promise.then(tournament => {
-				var message = "";
-				var last_division = "";
-				var standings = tournament.standings.latest();
-				channel.sendMessage("Current tournament standings for: **" + tournament.title + "**\n");
-				var unrankedUsers = [];
-				standings.rankings.forEach(user => {
-					var division = tournament.ranker.getDivision(standings.rating(user));
-					var stats = standings.getStats(user);
-					// the number of matches in order to be ranked
-					if(stats.matches.length >= 3) { // TODO: don't hardcode this value
-						if(division.name !== last_division) {
-							if(last_division !== "") {
-								message += "\`\`\`\n";
-							}
-							message += "*Division " + division.name + "*\n";
-							message += "\`\`\`md\n";
-							last_division = division.name;
-						}
-
-						message += "<" + standings.rating(user) + "> < " + standings.getStats(user).points + " pts > | ";
-						message += user.nickname + "\n";
-					} else {
-						unrankedUsers.push(user);
-					}
-				});
-
-				message += "\`\`\`";
-
-				channel.sendMessage(message);
-
-				// after, print unranked players
-				channel.sendMessage("The following players are currently unranked:");
-				message = "\`\`\`\n";
-				unrankedUsers.forEach(user => {
-					message += user.nickname + "\n";
-				});
-				message += "\`\`\`";
-				channel.sendMessage(message);
-			})
-			.catch(error => {
-				Logger.log("error", error.stack);
-			});
+		if(promise == null) {
+			channel.sendMessage("Sorry, there isn't a tournament currently loaded.");
+			channel.sendMessage("(Try `.t set <tournament-id>`? :wink:)");
 		}
+
+		promise.then(tournament => {
+			var message = "";
+			var last_division = "";
+			var standings = tournament.standings.latest();
+			channel.sendMessage("Current tournament standings for: **" + tournament.title + "**\n");
+			var unrankedUsers = [];
+			standings.rankings.forEach(user => {
+				var division = tournament.ranker.getDivision(standings.rating(user));
+				var stats = standings.getStats(user);
+				// the number of matches in order to be ranked
+				if(stats.matches.length >= 3) { // TODO: don't hardcode this value
+					if(division.name !== last_division) {
+						if(last_division !== "") {
+							message += "\`\`\`\n";
+						}
+						message += "*Division " + division.name + "*\n";
+						message += "\`\`\`md\n";
+						last_division = division.name;
+					}
+
+					message += "<" + standings.rating(user) + "> < " + standings.getStats(user).points + " pts > | ";
+					message += user.nickname + "\n";
+				} else {
+					unrankedUsers.push(user);
+				}
+			});
+
+			message += "\`\`\`";
+
+			channel.sendMessage(message);
+
+			// after, print unranked players
+			channel.sendMessage("The following players are currently unranked:");
+			message = "\`\`\`\n";
+			unrankedUsers.forEach(user => {
+				message += user.nickname + "\n";
+			});
+			message += "\`\`\`";
+			channel.sendMessage(message);
+		})
+		.catch(error => {
+			Logger.log("error", error.stack);
+		});
 	}
 }
 
