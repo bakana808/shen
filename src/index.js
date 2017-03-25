@@ -12,7 +12,7 @@ var DiscordCommands  = require("./discord/commands");
 var User             = require("./user");
 var ApiRouter        = require("./router/api");
 
-//region// Environment Variables ///////////////////////////////////////////////
+// <editor-fold> Environment Variables /////////////////////////////////////////
 
 // run dotenv to load variables from .env
 require("dotenv").config();
@@ -33,19 +33,23 @@ var config = {
 	port: isNaN(process.env.PORT) ? 5000 : process.env.PORT
 };
 
-//endregion//
+// </editor-fold>
 
-//region// Shen API ////////////////////////////////////////////////////////////
+// <editor-fold> Firebase & Server API /////////////////////////////////////////
 
 // set database to use with shen API
 shen.useDatabase(new FirebaseDatabase(config.firebase.email, config.firebase.id, config.firebase.databaseURL, config.firebase.key));
 
 // load active tournament
-DiscordCommands.static.tournament = shen.fetchActiveTournament();
+shen.fetchActiveTournament()
+.then(tournament => {
+	DiscordCommands.static.tournament = tournament;
+})
+.catch(error => console.log(error.stack));
 
-//endregion//
+// </editor-fold>
 
-//region// Discord Bot /////////////////////////////////////////////////////////
+// <editor-fold> Discord Bot ///////////////////////////////////////////////////
 
 var bot = new DiscordBot(config.discord.botToken);
 
@@ -55,9 +59,9 @@ Object.getOwnPropertyNames(DiscordCommands).forEach(key => {
 	}
 });
 
-//endregion//
+// </editor-fold>
 
-//region// Passport (Authentication) ///////////////////////////////////////////
+// <editor-fold> Passport (Authentication) /////////////////////////////////////
 
 passport.serializeUser((user, done) => {
 	done(null, user.id);
@@ -82,9 +86,9 @@ passport.use(new DiscordStrategy({
 	});
 }));
 
-//endregion//
+// </editor-fold>
 
-//region// Express (Web Application) ///////////////////////////////////////////
+// <editor-fold> Express (Web Application) /////////////////////////////////////
 
 const app =  express();
 const port = config.port;
@@ -102,9 +106,9 @@ app.use(session({ secret: "persist123" }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-//endregion//
+// </editor-fold>
 
-//region// Express Routes //////////////////////////////////////////////////////
+// <editor-fold> Express Routes ////////////////////////////////////////////////
 
 // route all API calls to the API router
 app.use("/api", (new ApiRouter(express.Router())).router);
@@ -127,6 +131,6 @@ app.get("/profile", (req, res) => {
 	}
 });
 
-//endregion//
+// </editor-fold>
 
 app.listen(port);
