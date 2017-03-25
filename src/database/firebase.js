@@ -437,6 +437,7 @@ class FirebaseDatabase {
 							}));
 						});
 						matches.push(shen.Match({
+							obj:        obj,
 							id:         id,
 							time:       Number(obj.time),
 							users:      matchUsers,
@@ -446,6 +447,7 @@ class FirebaseDatabase {
 						}));
 					} else { // construct a match without rounds
 						matches.push(shen.MatchSimple({
+							obj:        obj,
 							id:         id,
 							time:       Number(obj.time),
 							users:      matchUsers,
