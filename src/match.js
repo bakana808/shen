@@ -13,6 +13,11 @@ var Event = require("./event");
 class Match extends Event {
 	constructor(obj = {}) { super(obj); this.__verifyObject(obj);
 		/**
+		 * The raw database object that was used to construct this match.
+		 * @type {object}
+		 */
+		Object.defineProperty(this, "obj", {value: obj.obj});
+		/**
 		 * The array of users that are involved in this match.
 		 * @type {User[]}
 		 */
@@ -140,6 +145,7 @@ class Match extends Event {
 	 */
 	__verifyObject(obj = this) {
 		obj = Options.merge({
+			obj: {},
 			users:      null, // the users (ids) in the match
 			winners:    null, // the winners (ids) of the match
 			//tournament: null, // the tournament (id) of the match
