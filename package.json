@@ -12,20 +12,15 @@
     "url": "git+https://github.com/leecccc/shen-server.git"
   },
   "dependencies": {
-    "dotenv": "4.0.0",
-
+    "cookie-parser": "^1.4.3",
     "discord.js": "^11.0.0",
-
-    "firebase": "3.5.0",
-
-    "express": "4.14.0",
-    "cookie-parser": "1.4.3",
-    "express-session": "1.15.0",
-
-    "passport": "0.3.2",
-    "passport-discord": "0.1.1",
-
-    "mathjs": "3.9.0"
+    "dotenv": "^4.0.0",
+    "express": "^4.14.0",
+    "express-session": "^1.15.0",
+    "firebase": "^3.5.0",
+    "outdent": "^0.3.0",
+    "passport": "^0.3.2",
+    "passport-discord": "^0.1.1"
   },
   "author": "",
   "license": "MIT",
@@ -34,22 +29,41 @@
   },
   "homepage": "https://github.com/leecccc/shen-server#readme",
   "eslintConfig": {
-      "env": {
-          "browser": true,
-          "node": true,
-          "es6": true
-      },
-      "extends": "eslint:recommended",
-      "parserOptions": {
-          "sourceType": "module"
-      },
-      "rules": {
-          "no-unused-vars": ["warn", {"vars": "all", "args": "all", "argsIgnorePattern": "^_"}],
-          "indent": ["error", "tab"],
-          "linebreak-style": ["error", "windows"],
-          "quotes": ["error", "double"],
-          "semi": ["error", "always"],
-          "no-console": 0
-      }
+    "env": {
+      "browser": true,
+      "node": true,
+      "es6": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-unused-vars": [
+        "warn",
+        {
+          "vars": "all",
+          "args": "all",
+          "argsIgnorePattern": "^_"
+        }
+      ],
+      "indent": [
+        "error",
+        "tab"
+      ],
+      "linebreak-style": [
+        "error",
+        "windows"
+      ],
+      "quotes": [
+        "error",
+        "double"
+      ],
+      "semi": [
+        "error",
+        "always"
+      ],
+      "no-console": 0
+    }
   }
 }
