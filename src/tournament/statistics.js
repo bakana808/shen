@@ -72,7 +72,7 @@ class UserStatistics {
 	 * @returns {type}      description
 	 */
 	adjustRating(diff) {
-		console.log("adjusting rating of " + this.user.nickname + ", matches: " + this.matches);
+		//console.log("adjusting rating of " + this.user.nickname + ", matches: " + this.matches);
 		if(isNaN(diff))
 			throw new ReferenceError("Rating adjustment is not a number, got " + diff);
 		return new UserStatistics({
@@ -103,7 +103,7 @@ class UserStatistics {
 	 * UserStatistics.
 	 */
 	addMatch(match, standings) {
-		console.log("added match to stats of " + this.user.nickname + ", matches: " + this.matches);
+		//console.log("added match to stats of " + this.user.nickname + ", matches: " + this.matches);
 		var stats = this.ranker.adjust(this, match, standings);
 		return new UserStatistics({
 			user:         stats.user,
