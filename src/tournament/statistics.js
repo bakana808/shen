@@ -1,7 +1,6 @@
 
 var Options = require("../util/options");
 var User    = require("../user");
-var Ranker  = require("../ranker");
 
 /**
  * Represents user statistics for a tournament at a given time.
@@ -29,13 +28,6 @@ class UserStatistics {
 		 * @type {User[]}
 		 */
 		Object.defineProperty(this, "wins", {value: obj.wins});
-
-		// elo-related properties
-		/**
-		 * The current skill rating of the player.
-		 * @type {Gametype}
-		 */
-		Object.defineProperty(this, "ranker", {value: obj.ranker});
 		/**
 		 * The current skill rating of the player.
 		 * @type {Gametype}
@@ -65,26 +57,30 @@ class UserStatistics {
 	}
 
 	/**
-	 * Adjusts this user's rating by an amount. Returns a new instance of
-	 * UserStatistics.
+	 * Adjusts this user's skill rating by an amount.
+	 * Returns a new instance of UserStatistics.
 	 *
-	 * @param  {type} diff description
-	 * @returns {type}      description
+	 * @param  {number} diff     The amount to adjust by.
+	 * @returns {UserStatistics} A new instance of UserStatistics.
 	 */
 	adjustRating(diff) {
-		//console.log("adjusting rating of " + this.user.nickname + ", matches: " + this.matches);
 		if(isNaN(diff))
 			throw new ReferenceError("Rating adjustment is not a number, got " + diff);
 		return new UserStatistics({
 			user:         this.user,
 			matches:      this.matches,
 			wins:         this.wins,
-			ranker:       this.ranker,
 			rating:       this.rating + diff,
 			points:       this.points,
 		});
 	}
-
+	/**
+	 * Adjust this user's points.
+	 * Returns a new instance of UserStatistics.
+	 *
+	 * @param  {number} diff    The amount to adjust by.
+	 * @return {UserStatistics} A new instance of UserStatistics.
+	 */
 	adjustPoints(diff) {
 		if(isNaN(diff))
 			throw new ReferenceError("Points is not a number, got " + diff);
@@ -92,40 +88,36 @@ class UserStatistics {
 			user:         this.user,
 			matches:      this.matches,
 			wins:         this.wins,
-			ranker:       this.ranker,
 			rating:       this.rating,
 			points:       this.points + diff,
 		});
 	}
-
 	/**
-	 * Increments the total matches of this user. Returns a new instance of
-	 * UserStatistics.
+	 * Pushes a matches to the list of matches that this user was involved in.
+	 * Returns a new instance of UserStatistics.
+	 *
+	 * @returns {UserStatistics} A new instance of UserStatistics.
 	 */
-	addMatch(match, standings) {
-		//console.log("added match to stats of " + this.user.nickname + ", matches: " + this.matches);
-		var stats = this.ranker.adjust(this, match, standings);
+	pushMatch(match) {
 		return new UserStatistics({
-			user:         stats.user,
-			matches:      stats.matches.concat([match]),
-			wins:         stats.wins,
-			ranker:       stats.ranker,
-			rating:       stats.rating,
-			points:       stats.points
+			user:         this.user,
+			matches:      this.matches.concat([match]),
+			wins:         this.wins,
+			rating:       this.rating,
+			points:       this.points
 		});
 	}
-
 	/**
-	 * Increments the total wins of this user. Returns a new instance of
-	 * UserStatistics.
+	 * Increments the total wins of this user.
+	 * Returns a new instance of UserStatistics.
+	 *
+	 * @returns {UserStatistics} A new instance of UserStatistics.
 	 */
 	incrementWins() {
-		//Logger.log(`Win count of Player (id=${ this.userId }) incremented. (${ this.totalMatches + 1})`);
 		return new UserStatistics({
 			user:         this.user,
 			matches:      this.matches,
 			wins:         this.wins + 1,
-			ranker:       this.ranker,
 			rating:       this.rating,
 			points:       this.points
 		});
@@ -137,33 +129,20 @@ class UserStatistics {
 			matches:      [],
 			wins:         0,
 			rating:       null,
-			ranker:       null,
 			points:       null,
 		}, obj);
-
 		if(obj.user == null || !(obj.user instanceof User)) {
 			throw new ReferenceError("\"user\" value is not an instance of User.");
 		}
-
 		if(!(obj.matches instanceof Array)) {
 			throw new ReferenceError("Matches is not an array. Got " + obj.matches);
 		}
-
 		if(isNaN(obj.wins)) {
 			throw new ReferenceError("Total matches is not a number.");
 		}
-
-		if(obj.ranker == null || !(obj.ranker instanceof Ranker)) {
-			throw new ReferenceError("Ranker is not an instance of Ranker.");
-		} else {
-			// set rating to ranker's initial rating if null
-			if(obj.rating == null) obj.rating = obj.ranker.initial;
-		}
-
 		if(isNaN(obj.rating)) {
 			throw new ReferenceError("Rating is not a number, got " + obj.rating);
 		}
-
 		if(isNaN(obj.points)) {
 			throw new ReferenceError("Points is not a number, got " + obj.rating);
 		}
