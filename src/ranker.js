@@ -2,44 +2,7 @@
 var Elo =     require("./elo");
 var Options = require("./util/options");
 var RangeMap = require("./rangemap");
-
-/**
- * Represents a rating division. This is aimed at grouping players by similar
- * skill ratings.
- */
-class Division {
-	constructor(options) {
-		options = Options.merge({
-			name: "NULL",
-			start: 0,
-			k:     40,
-			gain:  1.0,
-			loss:  1.0,
-		}, options);
-		/**
-		 * The name of the division.
-		 * @type {string}
-		 */
-		Object.defineProperty(this, "name", {value: options.name});
-		/**
-		 * The K-factor to use when in this division.
-		 * @type {number}
-		 */
-		Object.defineProperty(this, "k", {value: options.k});
-		/**
-		 * Gain Multiplier - If a player wins a match while in this division,
-		 * then the rating adjustment will be multiplied by this value.
-		 * @type {number}
-		 */
-		Object.defineProperty(this, "gain", {value: options.gain});
-		/**
-		 * Loss Multiplier - If a player loses a match while in this division,
-		 * then the rating adjustment will be multiplied by this value.
-		 * @type {number}
-		 */
-		Object.defineProperty(this, "loss", {value: options.loss});
-	}
-}
+var Division = require("./tournament/skillgroup");
 
 /**
  * Represents an extension to the Elo rating system by taking into account
@@ -76,6 +39,7 @@ class Ranker {
 	}
 
 	/**
+	 * @deprecated
 	 * Gets the division at this rating.
 	 *
 	 * @param  {type} rating description
@@ -88,79 +52,77 @@ class Ranker {
 	}
 
 	/**
-	 * Adjusts the given user statistics given a match.
+	 * Returns the skill group that this skill rating translates to.
 	 *
-	 * @param  {type} stats description
-	 * @param  {type} score description
-	 * @returns {type}       description
+	 * @param  {Number} [ rating = 0 ] The skill rating of an entrant.
+	 * @return {Division}              The skill group.
 	 */
-	adjust(stats, match, standings) {
-		if(!match.hasUser(stats.user)) {
-			throw new ReferenceError(
-				"This match does not contain this user: " + stats.user.nickname + "\n"
-				+ "Players in this match: " + match.users
-			);
-		}
+	getSkillGroup(rating = 0) {
+		return this.divisions.get(rating);
+	}
 
-		//== hidden division ==//
-		var bonus = 1.0;
-		var division;
-		if(stats.matches.length < 3) { // if this match is one of the first three matches, give a bonus.
-			division = new Division({
-				name: "Hidden",
-				start: 0,
-				k: 40
-			});
-			//bonus = 1.5;
-		} else {
-			division = this.getDivision(stats.rating);
-		}
+	/**
+	 * Processes a match. This function should modify the current tournament snapshot as needed
+	 * then return a new one.
+	 *
+	 * @param  {[type]} standings [description]
+	 * @param  {[type]} user      [description]
+	 * @param  {[type]} match     [description]
+	 * @return [type]             [description]
+	 */
+	processMatch(standings, match) {
+		var newStandings = standings;
+		match.users.forEach(user => {
+			let effectiveK = 0;                               // the k-factor to use (in case it changes later)
+			let adjustment = 0;                               // the SR adjustment
+			let stats      = standings.getEntrantStats(user);
+			let opponent   = match.getOpponents(user)[0];
+			let opponentSR = standings.getEntrantStats(opponent).rating;
+			let skillGroup;                                   // the skill group of the user
 
-		// check for division override /////////////////////////////////////////
+			//console.log(`${user.nickname}: ${stats.rating} - ${opponentSR}`);
 
-		var k_override = -1;
-
-		if("win-k" in match.obj) {
-			//k_override = match.obj["win-k"];
-			k_override = division.k * 1.5;
-			console.log("This match has a K override of " + k_override);
-		}
-
-		//stats = stats.incrementTotalMatches();-m
-		//var division = this.getDivision(stats.rating);
-		var opponent = match.getOpponents(stats.user)[0];
-		var opponentRating = standings.getStats(opponent).rating;
-
-		//console.log(`using division ${division.name} k:${division.k} gain:${division.gain} loss:${division.loss}`);
-		//console.log(`opponent rating: ${opponentRating}`);
-
-		let adjustment = 0;
-
-		if(match.isWinner(stats.user)) { // user won
-			stats = stats.incrementWins();
-			// get rating adjustment using Elo
-			if(k_override > 0) { // use the k override value
-				adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, k_override) * division.gain * bonus);
+			// placement match check ///////////////////////////////////////////
+			if(stats.matches.length < 3) {
+				// use a static skill group for skill group placement
+				skillGroup = new Division({ name: "Hidden", start: 0, k: 40 });
 			} else {
-				adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 1, division.k) * division.gain * bonus);
+				skillGroup = this.getSkillGroup(stats.rating);
+			}
+			effectiveK = skillGroup.k;
+
+
+			// calculate SR adjustments ////////////////////////////////////////
+			let score = 0;
+			if(match.isWinner(stats.user)) {
+				stats = stats.incrementWins();
+				score = 1;
+
+				// k-factor boost - checks if a property exists in the db //////
+				if("win-k" in match.obj) {
+					// boost the current K-factor 150%
+					effectiveK = effectiveK * 1.50;
+				}
 			}
 
-			if(stats.matches.length > 3) {
+			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentSR, score, effectiveK));
+
+			if(stats.matches.length > 3 && adjustment > 0) {
 				stats = stats.adjustPoints(adjustment);
 			}
-		} else { // user lost
-			adjustment = Math.ceil(Elo.adjust(stats.rating, opponentRating, 0, division.k) * division.loss * bonus);
-		}
 
-		// apply floor value
-		if(stats.rating + adjustment < this.floor) {
-			adjustment = this.floor - stats.rating;
-			stats = stats.adjustPoints(0);
-		}
+			// SR floor check //////////////////////////////////////////////////
+			if(stats.rating + adjustment < this.floor) {
+				adjustment = this.floor - stats.rating;
+			}
 
-		console.log("rating adjustment: " + adjustment);
+			// apply SR adjustments ////////////////////////////////////////////
+			stats = stats.adjustRating(adjustment);
+			stats = stats.pushMatch(match);
 
-		return stats.adjustRating(adjustment);
+			newStandings = newStandings.setEntrantStats(user, stats);
+		});
+		return newStandings;
 	}
 }
 
