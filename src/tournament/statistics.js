@@ -48,14 +48,6 @@ class UserStatistics {
 	// shortcut getter to get losses instead of wins
 	get losses() { return this.matches.length - this.wins; }
 
-	// TODO: move to own class
-	get division() {
-		if(this.rating >= 1100) return "S";
-		if(this.rating >= 1000) return "A";
-		if(this.rating >= 950) return "B";
-		return "C";
-	}
-
 	/**
 	 * Adjusts this user's skill rating by an amount.
 	 * Returns a new instance of UserStatistics.
