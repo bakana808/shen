@@ -39,6 +39,7 @@ module.exports = class User {
 	}
 
 	equals(user) {
+		if(user == null) return false;
 		return (user.id == this.id) && (user.nickname == this.nickname);
 	}
 
