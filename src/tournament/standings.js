@@ -10,16 +10,28 @@ class TournamentStandings {
 	 * @returns {type}         description
 	 */
 	constructor(options) {
-		if(options.statmap == null) {
-			options.statmap = this.__initializeStats(options.tournament);
+		var tournament;
+		var statmap;
+
+		if(options instanceof TournamentStandings) { // copy constructor
+			tournament = options.tournament;
+			statmap = options.statmap;
+		} else {
+			if(options.statmap == null) {
+				options.statmap = this.__initializeStats(options.tournament);
+			}
+			tournament = options.tournament;
+			statmap = options.statmap;
 		}
 		/**
 		 * The tournament these standings are for.
 		 * @type {Tournament}
 		 */
-		Object.defineProperty(this, "tournament", {value: options.tournament});
+		Object.defineProperty(this, "tournament", {value: tournament});
 
-		Object.defineProperty(this, "statmap", {value: options.statmap});
+		Object.defineProperty(this, "statmap", {value: statmap});
+	}
+
 	}
 
 	inputMatch(match) {
