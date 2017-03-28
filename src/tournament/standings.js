@@ -31,23 +31,77 @@ class TournamentStandings {
 
 		Object.defineProperty(this, "statmap", {value: statmap});
 	}
-
+	/**
+	 * Processes a match using the ranker and returns the updated tournament standings.
+	 *
+	 * @param  {Match} match         The match to process.
+	 * @return {TournamentStandings} The updated tournament standings.
+	 */
+	pushMatch(match) {
+		// check if all users in this match exist
+		match.users.forEach(user => {
+			if(!this.isEntrantPresent(user)) {
+				throw new ReferenceError("This match includes a user not part of the tournament: " + user.nickname);
+			}
+		});
+		// calculate rating adjustments
+		return this.tournament.ranker.processMatch(this, match);
 	}
 
-	inputMatch(match) {
-		// shallow clone this instance's statmap
-		var statmap = new Map(this.statmap);
-		match.users.forEach(user => {
-			// add match to each user of the match
-			var stats = this.getStats(user).addMatch(match, this);
-			statmap.set(user, stats);
-		});
+	/**
+	 * Returns true if the given user is a part of this instance of tournament standings.
+	 *
+	 * @param  {[type]} user [description]
+	 * @return [type]        [description]
+	 */
+	isEntrantPresent(user) {
+		return this.statmap.has(user);
+		// var it = this.statmap.keys();
+		// var next;
+		// // iterate through users in statmap
+		// while((next = it.next()).done == false) {
+		// 	let val = next.value;
+		// 	if(val.equals(user)) {
+		// 		return true;
+		// 	}
+		// }
+		//return false;
+	}
+	/**
+	 * Returns the statistics of this user.
+	 *
+	 * @param  {User} user      The user.
+	 * @return {UserStatistics} The statistics of this user.
+	 */
+	getEntrantStats(user) {
+		if(user == null) {
+			throw new TypeError("Unable to retrieve stats, the provided user is invalid: " + user);
+		}
+		if(!this.isEntrantPresent(user)) {
+			throw new ReferenceError("Unable to retrieve stats, this user does not exist: " + user.nickname);
+		}
+		return this.statmap.get(user);
+	}
+	/**
+	 * Sets the statistics of this user. This will return a new instance of tournament standings.
+	 *
+	 * @param  {[type]}   user [description]
+	 * @param  {Function} fn   [description]
+	 * @return [type]          [description]
+	 */
+	setEntrantStats(user, stats) {
+		var statmapCopy = new Map(this.statmap);
+		statmapCopy.set(user, stats);
 		return new TournamentStandings({
 			tournament: this.tournament,
-			statmap:    statmap
+			statmap: statmapCopy
 		});
 	}
-
+	/**
+	 * @deprecated
+	 * @param  {[type]} user [description]
+	 * @return [type]        [description]
+	 */
 	getStats(user) {
 		return this.statmap.get(user);
 	}
@@ -81,7 +135,7 @@ class TournamentStandings {
 	__initializeStats(tournament = this.tournament) {
 		var statmap = new Map();
 		tournament.users.forEach(user => {
-			statmap.set(user, new Statistics({ user: user, ranker: tournament.ranker }));
+			statmap.set(user, new Statistics({ user: user, rating: tournament.ranker.initial }));
 		});
 		return statmap;
 	}

@@ -35,12 +35,25 @@ class TournamentStandingsHistory {
 		var standings = new TournamentStandings({ tournament: tournament });
 
 		var matchMap = new Map();
+		var dateHead = null;
 
 		tournament.matches.forEach(match => {
-			standings = standings.inputMatch(match);
+			standings = standings.pushMatch(match);
 			standingsArray.push(standings);
 			matchMap.set(match, standings);
+
+			var date = new Date(match.time);
+
+			if(dateHead == null) {
+				console.log(date.toDateString() + " | " + "//// TOURNAMENT CREATED ////");
+			}
+
+			console.log(date.toDateString() + " | " + `Match (#${match.id}): "${match.users[0].nickname} vs. ${match.users[1].nickname}"`);
+
+			dateHead = date;
 		});
+
+		console.log((new Date()).toDateString() + " | " + "//// LATEST TOURNAMENT SNAPSHOT ////");
 
 		return new TournamentStandingsHistory(standingsArray, matchMap);
 	}
