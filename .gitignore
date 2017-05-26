@@ -1,3 +1,4 @@
 /node_modules
 .env
 .tern-project
+.swp
