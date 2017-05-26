@@ -318,16 +318,16 @@ class DiscordCommands {
 		}
 		if(args.length == 2 && args[0] == "set") { // set current tournament
 			let tournamentId = args[1];
-			try {
-				shen.fetchTournament(tournamentId)
-				.then(tournament => {
-					Static.tournament = tournament;
-					channel.sendMessage("The current tournament is: " + Static.tournament.title);
-				})
-				.catch(error => console.log("```" + error.stack + "```"));
-			} catch (error) {
+			channel.sendMessage("Loading tournament \`" + args[1] + "\`...");
+			shen.fetchTournament(tournamentId)
+			.then(tournament => {
+				Static.tournament = tournament;
+				channel.sendMessage("The current tournament is: " + Static.tournament.title);
+			})
+			.catch(error => {
+				console.log("```" + error.stack + "```");
 				channel.sendMessage("We couldn't find a tournament with that ID. :disappointed_relieved:");
-			}
+			});
 		}
 		if(args.length == 3 && args[0] == "create") { // new command
 			let tournamentId = args[1];
@@ -372,7 +372,7 @@ class DiscordCommands {
 			});
 		}
 		if(args.length >= 2 && args[0] == "match") { // new match command
-			if(Static.tournament == null) {
+			if(DiscordCommands.static.tournament == null) {
 				channel.sendMessage("There's no current tournament set right now.");
 				return; // end command here
 			}
@@ -392,7 +392,7 @@ class DiscordCommands {
 
 			// let userIds =      [args[1], args[2]];
 			// let winners =      [args[3]];
-			shen.db.createMatch(Static.tournament.id, userIds, winners)
+			shen.db.createMatch(DiscordCommands.static.tournament.id, userIds, winners)
 			.then(() => {
 				channel.sendMessage(`Added new match ("${userIds[0]} vs ${userIds[1]}")`);
 			})

@@ -1,4 +1,4 @@
-var firebase = require("firebase");
+var firebase = require("firebase-admin");
 
 var shen =        require("../shen");
 var Logger =      require("../util/logger");
@@ -10,16 +10,19 @@ var Game =        require("../gametype");
 
 var { Keys, Errors } = require("./firebase/constants");
 
+var serviceAccount = require("../../firebase_service_key.json");
+
 class FirebaseDatabase {
 	constructor(email, projectId, databaseURL, privatekey) {
 		//super("firebase");
 		this.prefix = "firebase";
 		firebase.initializeApp({
-			serviceAccount: {
-				projectId: projectId,
-				clientEmail: email,
-				privateKey: `-----BEGIN PRIVATE KEY-----\n${ privatekey.replace(/\\n/g, "\n") }\n-----END PRIVATE KEY-----\n`
-			},
+			// credential: firebase.credential.cert({
+			// 	projectId: projectId,
+			// 	clientEmail: email,
+			// 	privateKey: `-----BEGIN PRIVATE KEY-----\n${ privatekey.replace(/\\n/g, "\n") }\n-----END PRIVATE KEY-----\n`
+			// }),
+			credential: firebase.credential.cert(serviceAccount),
 			databaseURL: databaseURL
 		});
 		this.fb = firebase.database();
@@ -73,6 +76,8 @@ class FirebaseDatabase {
 			this.fb.ref(key).once("value", (snapshot) => {
 				Logger.log(this.prefix, `Read from key "${ key }".`);
 				resolve(snapshot);
+			}, (error) => {
+				console.log(error.stack);
 			});
 		});
 	}

@@ -9,7 +9,7 @@ var Options = require("./util/options");
  * A Player is an extension of a User that includes additional information
  * that relates to the Tournament they are participating in.
  */
-module.exports = class Player extends User {
+module.exports = class Entrant extends User {
 	constructor(options) { super(options);
 		// options verification
 		options = Options.merge({
