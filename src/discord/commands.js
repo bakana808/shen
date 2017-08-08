@@ -63,6 +63,28 @@ class DiscordCommands {
 			}
 		}
 	}
+
+	static _promptyn(member, channel, _args, bot) {
+		bot.promptUserYN(member, channel, "This is a test Y/N prompt. Answer the prompt by typing \"yes\" or \"no\".")
+		.then((choice) => {
+			if(choice) {
+				channel.sendMessage("Interpreted answer as \"yes\".");
+			} else {
+				channel.sendMessage("Interpreted answer as \"no\".");
+			}
+		}).catch((reason) => {
+			channel.sendMessage("Could not interpret response.");
+			channel.sendMessage(reason);
+		});
+	}
+
+	static _prompt(member, channel, _args, bot) {
+		bot.promptUser(member, channel, "This is a test prompt. Answer the prompt by typing anything.")
+		.then((choice) => {
+			channel.sendMessage("Interpreted answer as \"" + choice + "\".");
+		});
+	}
+
 	static killme(_member, channel, _args) {
 		channel.sendMessage("i want to die :sob: :gun:");
 	}
@@ -114,6 +136,21 @@ class DiscordCommands {
 				`);
 			});
 		}
+	}
+
+	static register(member, channel, args, bot) {
+
+		bot.promptUser(member, channel, "Please enter your display name.\nThis name will be used in the leaderboards and will identify you in matches.")
+		.then((name) => {
+			bot.promptUserYN(member, channel, "Please confirm you want your name to be \"" + name + "\" by entering \"yes\" or \"no\".")
+			.then((yes) => {
+				if(yes) {
+					channel.sendMessage("<add new user here> :ok_hand:");
+				} else {
+					channel.sendMessage("Alright. Type `$register` again to re-enter your name.");
+				}
+			});
+		});
 	}
 
 	// prints player statistics
