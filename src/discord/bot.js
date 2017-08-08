@@ -10,6 +10,8 @@ module.exports = class DiscordBot {
 		this.bot = new Discord.Client();
 		this.bot.login(token);
 
+		this.promptMap = new Map();
+
 		this.bot.on("ready", () => {
 			Logger.log("discord", "The discord bot went online.");
 
@@ -29,7 +31,7 @@ module.exports = class DiscordBot {
 
 				if(this.commandMap.has(root)) {
 					try {
-						this.commandMap.get(root)(message.member, message.channel, args);
+						this.commandMap.get(root)(message.member, message.channel, args, this);
 					} catch(error) {
 						message.channel.sendMessage("```" + error.stack + "```");
 					}
@@ -59,5 +61,65 @@ module.exports = class DiscordBot {
 
 	chatCode(channel, lang, message) {
 		this.channel.sendCode(lang, message, {split: true});
+	}
+
+	/**
+	 * Asks a user to type "yes" or "no" (or any shortcuts) and executes a callback.
+	 *
+	 * @param  {[type]}   member   [description]
+	 * @param  {Function} callback [description]
+	 * @return {[type]}            [description]
+	 */
+	promptUserYN(member, channel, prompt) {
+		channel.sendMessage(prompt);
+
+		return new Promise((resolve, reject) => {
+			// create function ahead in order to remove it later
+			var fn = (message) => {
+				var msg = message.content;
+				var _member = message.member;
+
+				if(member == _member) {
+					this.bot.removeListener("message", fn);
+
+					if(msg.toLowerCase() == "yes") {
+						resolve(true);
+						return;
+					}
+					if(msg.toLowerCase() == "no") {
+						resolve(false);
+						return;
+					}
+
+					reject("The user gave incorrect input.");
+				}
+			};
+			this.bot.on("message", fn);
+		});
+	}
+
+	/**
+	 * Asks a user to type a string and executes a callback.
+	 *
+	 * @param  {[type]}   member   [description]
+	 * @param  {Function} callback [description]
+	 * @return {[type]}            [description]
+	 */
+	promptUser(member, channel, prompt) {
+		channel.sendMessage(prompt);
+
+		return new Promise((resolve) => {
+			// create function ahead in order to remove it later
+			var fn = (message) => {
+				var msg = message.content;
+				var _member = message.member;
+
+				if(member == _member) {
+					this.bot.removeListener("message", fn);
+					resolve(msg);
+				}
+			};
+			this.bot.on("message", fn);
+		});
 	}
 };
