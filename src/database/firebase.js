@@ -13,7 +13,7 @@ var { Keys, Errors } = require("./firebase/constants");
 var serviceAccount = require("../../firebase_service_key.json");
 
 class FirebaseDatabase {
-	constructor(email, projectId, databaseURL, privatekey) {
+	constructor(_email, _projectId, databaseURL, _privatekey) {
 		//super("firebase");
 		this.prefix = "firebase";
 		firebase.initializeApp({
@@ -249,13 +249,13 @@ class FirebaseDatabase {
 	 */
 	fetchActiveTournamentID() {
 		return this.fetch(Keys.activeTournament)
-		.then(snapshot => {
-			if(!snapshot.exists()) {
-				throw new ReferenceError("The Active Tournament does not exist.");
-			} else {
-				return snapshot.val();
-			}
-		});
+			.then(snapshot => {
+				if(!snapshot.exists()) {
+					throw new ReferenceError("The Active Tournament does not exist.");
+				} else {
+					return snapshot.val();
+				}
+			});
 	}
 
 	/**
@@ -284,32 +284,32 @@ class FirebaseDatabase {
 		var users;
 
 		return this.fetch(Keys.tournament(tournamentID))
-		.then((snapshot) => { // get tournament info
-			if(!snapshot.exists()) { // throw error if not exists
-				throw new ReferenceError(`A tournament with ID ${tournamentID} does not exist.`);
-			}
-			title =          snapshot.child("title").val();
-			var gametypeId = snapshot.child("game").val();
-			return this.fetchGametype(gametypeId);
-		})
-		.then((gametype_) => { // get gametype
-			gametype = gametype_;
-			return this.fetchTournamentPlayers(tournamentID);
-		})
-		.then((users_) => { // get users in tournament
-			users = users_;
-			return this.fetchTournamentMatches(tournamentID, users);
-		})
-		.then((matches) => { // finally, get matches
-			return shen.Tournament({
-				id: tournamentID,
-				time: 1452297600, // January 9, 2016 in UNIX. TODO: write this in the database
-				title: title,
-				users: users,
-				game: gametype,
-				matches: matches
+			.then((snapshot) => { // get tournament info
+				if(!snapshot.exists()) { // throw error if not exists
+					throw new ReferenceError(`A tournament with ID ${tournamentID} does not exist.`);
+				}
+				title =          snapshot.child("title").val();
+				var gametypeId = snapshot.child("game").val();
+				return this.fetchGametype(gametypeId);
+			})
+			.then((gametype_) => { // get gametype
+				gametype = gametype_;
+				return this.fetchTournamentPlayers(tournamentID);
+			})
+			.then((users_) => { // get users in tournament
+				users = users_;
+				return this.fetchTournamentMatches(tournamentID, users);
+			})
+			.then((matches) => { // finally, get matches
+				return shen.Tournament({
+					id: tournamentID,
+					time: 1452297600, // January 9, 2016 in UNIX. TODO: write this in the database
+					title: title,
+					users: users,
+					game: gametype,
+					matches: matches
+				});
 			});
-		});
 	}
 
 	/**
@@ -352,16 +352,16 @@ class FirebaseDatabase {
 		console.log(user);
 		var key = Keys.tournamentPlayers(tournamentID);
 		return this.fetch(key)
-		.then(snapshot => {
-			var userIDs = [];
-			if(snapshot.exists()) {
-				userIDs = snapshot.val();
-			}
-			if(userIDs.indexOf(user.id) == -1) {
-				userIDs.push(user.id);
-			}
-			return this.write(key, userIDs, true);
-		});
+			.then(snapshot => {
+				var userIDs = [];
+				if(snapshot.exists()) {
+					userIDs = snapshot.val();
+				}
+				if(userIDs.indexOf(user.id) == -1) {
+					userIDs.push(user.id);
+				}
+				return this.write(key, userIDs, true);
+			});
 		//return this.write(Keys.tournamentPlayer(tournamentID, user.id), { rating: 0 });
 	}
 
@@ -465,9 +465,9 @@ class FirebaseDatabase {
 			});
 			return matches;
 		})
-		.catch((error) => {
-			Logger.error(error.stack);
-		});
+			.catch((error) => {
+				Logger.error(error.stack);
+			});
 	}
 
 	// fetchTournamentUsers(tournamentID) {
@@ -496,21 +496,21 @@ class FirebaseDatabase {
 	 */
 	fetchTournamentPlayers(tournamentID) {
 		return this.fetchTournamentExists(tournamentID)
-		.then(exists => {
-			if(!exists) throw new ReferenceError(Errors.noTournament(tournamentID));
-			return this.fetch(Keys.tournamentPlayers(tournamentID));
-		})
-		.then(snapshot => {
-			if(!snapshot.exists()) { // this shouldn't happen but if it does,
-				return []; // return an empty array
-			}
-			let userIDs = [];
-			snapshot.forEach(child => {
-				let userID = child.val();
-				userIDs.push(userID);
+			.then(exists => {
+				if(!exists) throw new ReferenceError(Errors.noTournament(tournamentID));
+				return this.fetch(Keys.tournamentPlayers(tournamentID));
+			})
+			.then(snapshot => {
+				if(!snapshot.exists()) { // this shouldn't happen but if it does,
+					return []; // return an empty array
+				}
+				let userIDs = [];
+				snapshot.forEach(child => {
+					let userID = child.val();
+					userIDs.push(userID);
+				});
+				return this.fetchUser(userIDs);
 			});
-			return this.fetchUser(userIDs);
-		});
 	}
 
 	//endregion//
