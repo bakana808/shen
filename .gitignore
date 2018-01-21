@@ -2,3 +2,5 @@
 .env
 .tern-project
 .swp
+npm-debug.log
+firebase_service_key.json
