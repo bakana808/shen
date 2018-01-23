@@ -12,6 +12,9 @@ module.exports = class DiscordBot {
 
 		this.promptMap = new Map();
 
+		// set avatar to whatever's in the folder atm
+		this.bot.user.setAvatar("./avatar.png");
+
 		this.bot.on("ready", () => {
 			Logger.log("discord", "The discord bot went online.");
 
