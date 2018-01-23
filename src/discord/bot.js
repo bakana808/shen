@@ -12,9 +12,6 @@ module.exports = class DiscordBot {
 
 		this.promptMap = new Map();
 
-		// set avatar to whatever's in the folder atm
-		this.bot.user.setAvatar("./avatar.png");
-
 		this.bot.on("ready", () => {
 			Logger.log("discord", "The discord bot went online.");
 
@@ -22,6 +19,10 @@ module.exports = class DiscordBot {
 			// TODO: don't hardcode the server id
 			this.channel = this.bot.guilds.get("174405074087313408")
 			.channels.find("name", "dev");
+
+			// set avatar to whatever's in the folder atm
+			this.bot.user.setAvatar("./avatar.png");
+			
 			this.online = true;
 		});
 
