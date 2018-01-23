@@ -10,19 +10,19 @@ var Game =        require("../gametype");
 
 var { Keys, Errors } = require("./firebase/constants");
 
-var serviceAccount = require("../../firebase_service_key.json");
+//var serviceAccount = require("../../firebase_service_key.json");
 
 class FirebaseDatabase {
-	constructor(_email, _projectId, databaseURL, _privatekey) {
+	constructor(email, projectId, databaseURL, privatekey) {
 		//super("firebase");
 		this.prefix = "firebase";
 		firebase.initializeApp({
-			// credential: firebase.credential.cert({
-			// 	projectId: projectId,
-			// 	clientEmail: email,
-			// 	privateKey: `-----BEGIN PRIVATE KEY-----\n${ privatekey.replace(/\\n/g, "\n") }\n-----END PRIVATE KEY-----\n`
-			// }),
-			credential: firebase.credential.cert(serviceAccount),
+			credential: firebase.credential.cert({
+				projectId: projectId,
+				clientEmail: email,
+				privateKey: `-----BEGIN PRIVATE KEY-----\n${ privatekey.replace(/\\n/g, "\n") }\n-----END PRIVATE KEY-----\n`
+			}),
+			//credential: firebase.credential.cert(serviceAccount),
 			databaseURL: databaseURL
 		});
 		this.fb = firebase.database();
