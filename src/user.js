@@ -1,32 +1,73 @@
 
-var Logger = require("./util/logger");
+//const Logger = require("./util/logger");
+const chalk = require("chalk");
+
 /**
- * This class represents a single user account on our service.
+ * Represents a user on Shen.
+ *
+ * @class
  */
-module.exports = class User {
-	constructor(options) {
-		this.id = null;
-		this.nickname = null;
+class User {
+	
+	/**
+	 * Constructs a user.
+	 *
+	 * @param {Object} data               Information about the user.
+	 * @param {string} data.uuid          The user's UUID.
+	 * @param {string} data.name          The user's name.
+	 * @param {string} data.discriminator The user's discriminator.
+	 */
+	constructor(data) {
 
-		if(typeof options === "object") {
-			if("id" in options) { this.id = options.id; }
-			if("nickname" in options) { this.nickname = options.nickname; }
-		}
+		/**
+		 * The UUID of the user.
+		 *
+		 * @type {string}
+		 * @readonly
+		 */
+		Object.defineProperty(this, "uuid", { value: data.uuid, writable: false });
 
-		if(options instanceof User) { // copy constructor
-			this.id = options.id;
-			this.nickname = options.nickname;
-		}
+		/**
+		 * The username of the user.
+		 *
+		 * @type {string}
+		 * @readonly
+		 */
+		Object.defineProperty(this, "name", { value: data.name, writable: false });
 
-		if(this.id == null) {
-			throw ReferenceError("User ID cannot be null.");
-		}
+		/**
+		 * The discriminator of this user, a 4-digit numerical string.
+		 * This is used to allow users with the same name to differentiate
+		 * themselves without exposing their UUID.
+		 *
+		 * @type {string}
+		 * @readonly
+		 */
+		Object.defineProperty(this, "discriminator", { value: data.discriminator, writable: false });
+	}
 
-		Object.freeze(this);
+	/**
+	 * Returns the tag of this user,
+	 * a combination of their name and their discriminator.
+	 *
+	 * @returns {string} The tag of this user.
+	 */
+	get tag() { return this.name + "#" + this.discriminator; }
+
+	/**
+	 * Returns a colored version of this user's tag.
+	 * Not recommended to use anywhere other than the CLI.
+	 *
+	 * @returns {string} The colored tag of this user.
+	 */
+	get tagc() {
+		return chalk.white(this.name) + chalk.gray("#" + this.discriminator);
 	}
 
 	/**
 	 * Checks if this user is in the provided array of users.
+	 *
+	 * @deprecated Use (@link findUserIn) instead.
 	 */
 	in(users) {
 		var pass = false;
@@ -38,12 +79,19 @@ module.exports = class User {
 		return pass;
 	}
 
+	/**
+	 * Checks if this user is equal to another user.
+	 *
+	 * @param {User} user The user to check against.
+	 *
+	 * @returns {boolean} True if these users are equal.
+	 */
 	equals(user) {
 		if(user == null) return false;
-		return (user.id == this.id) && (user.nickname == this.nickname);
+		return (user.uuid == this.uuid)
+			&& (user.name == this.name)
+			&& (user.discriminator == this.discriminator);
 	}
-
-	toString() { return "[" + this.id + "] " + this.nickname; }
 
 	static getUser(users, userId) {
 		var found = null;
@@ -61,6 +109,10 @@ module.exports = class User {
 
 	}
 
-	// get id() { return this.id; }
-	// get nickname() { return this._nickname != null ? this._nickname : "unnamed user"; }
-};
+	/**
+	 * @override
+	 */
+	toString() { return this.tag(); }
+}
+
+module.exports = User;

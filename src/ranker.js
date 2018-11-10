@@ -65,10 +65,9 @@ class Ranker {
 	 * Processes a match. This function should modify the current tournament snapshot as needed
 	 * then return a new one.
 	 *
-	 * @param  {[type]} standings [description]
-	 * @param  {[type]} user      [description]
-	 * @param  {[type]} match     [description]
-	 * @return [type]             [description]
+	 * @param  {TournamentStandings} standings the tournament standings
+	 * @param  {Match}               match     the match to process
+	 * @return {TournamentStandings} the modified tournament standings
 	 */
 	processMatch(standings, match) {
 		var newStandings = standings;

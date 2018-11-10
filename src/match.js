@@ -1,6 +1,7 @@
 
-var Options = require("./util/options");
-var Event = require("./event");
+const { findUserIn } = require("./util/userutils");
+var Options          = require("./util/options");
+var Event            = require("./event");
 
 /**
  * Represents a tournament match.
@@ -9,29 +10,63 @@ var Event = require("./event");
  *   1. the unique id referencing this specific match
  *   2. the Users in this match.
  *   3. the winners (Users) of this match.
+ *
+ * @class
  */
-class Match extends Event {
-	constructor(obj = {}) { super(obj); this.__verifyObject(obj);
+class Match {
+
+	constructor(data) {
+
+		/**
+		 * The ID of the match.
+		 *
+		 * @type {number}
+		 */
+		Object.defineProperty(this, "id", {value: data.id});
+
 		/**
 		 * The raw database object that was used to construct this match.
+		 *
 		 * @type {object}
 		 */
-		Object.defineProperty(this, "obj", {value: obj.obj});
+		Object.defineProperty(this, "obj", {value: data.obj});
+
 		/**
 		 * The array of users that are involved in this match.
+		 *
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "users", {value: obj.users});
+		Object.defineProperty(this, "users", {value: data.users});
+
 		/**
 		 * The array of users that are considered "winners" of this match.
+		 *
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "winners", {value: obj.winners});
+		Object.defineProperty(this, "winners", {value: data.winners});
+
 		/**
 		 * The tournament that this match is for.
+		 *
 		 * @type {Tournament}
 		 */
-		Object.defineProperty(this, "tournament", {value: obj.tournament});
+		Object.defineProperty(this, "tournament", {value: data.tournament});
+
+		/**
+		 * The maximum amount of rounds in this tournament.
+		 *
+		 * @type {number}
+		 */
+		Object.defineProperty(this, "num_rounds", { value: data.num_rounds });
+
+		/**
+		 * The rounds in this tournament.
+		 *
+		 * @type {Round[]}
+		 */
+		Object.defineProperty(this, "rounds", {value: data.rounds});
+
+
 	}
 
 	/**
@@ -49,6 +84,24 @@ class Match extends Event {
 	 * @returns {number} the time the match took place
 	 */
 	//get time() { return this.options.time; }
+
+	/**
+	 * Gets the total amount of round wins for this user according to the rounds
+	 * currently added.
+	 *
+	 * @returns {number} The amount of round wins for this user.
+	 */
+	getRoundWins(user) {
+
+		if(!findUserIn(user, this.users)) throw new Error(`the user ${ user.nametag() } is not a part of this match`);
+		let wins = 0;
+
+		this.rounds.forEach((round) => {
+			if(user.equals(round.winner)) wins++;
+		});
+
+		return wins;
+	}
 
 	/**
 	 * Gets the "score" of the player, which is a number between 0 to 1 (inclusive).
@@ -143,25 +196,25 @@ class Match extends Event {
 	 * @param  {type} obj = this description
 	 * @returns {type}            description
 	 */
-	__verifyObject(obj = this) {
-		obj = Options.merge({
+	__verifyObject(data = this) {
+		data = Options.merge({
 			obj: {},
 			users:      null, // the users (ids) in the match
 			winners:    null, // the winners (ids) of the match
 			//tournament: null, // the tournament (id) of the match
-		}, obj);
+		}, data);
 
-		if(obj.users == null || !(obj.users instanceof Array)) {
+		if(data.users == null || !(data.users instanceof Array)) {
 			throw new ReferenceError("Users for match is not an array.");
 		}
 
-		if(obj.winners == null) {
+		if(data.winners == null) {
 			throw new ReferenceError("Winners for match is not an array.");
 		}
 
-		if(!(obj.users instanceof Array)) obj.users = [obj.users];
+		if(!(data.users instanceof Array)) data.users = [data.users];
 
-		// if(obj.tournament == null) {
+		// if(data.tournament == null) {
 		// 	throw new ReferenceError("Tournament ID for match cannot be null.");
 		// }
 	}

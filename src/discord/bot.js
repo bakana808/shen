@@ -1,52 +1,80 @@
 
 var Discord = require("discord.js");
-var Logger  = require("../util/logger");
+var logger  = new (require("../util/logger"))("discord");
 
 module.exports = class DiscordBot {
+
 	constructor(token) {
+
+		/**
+		 * The API token of this bot.
+		 *
+		 * @readonly
+		 * @type {string}
+		 */
+		this.token = token;
+
 		this.commandMap = new Map();
-		this.prefix = "discord";
-		this.online = false;
+		this.connected = false;
 		this.bot = new Discord.Client();
 		this.bot.login(token);
 
 		this.promptMap = new Map();
+	}
 
-		this.bot.on("ready", () => {
-			Logger.log("discord", "The discord bot went online.");
+	async init() {
 
-			// save the rankings text channel into a variable
-			// TODO: don't hardcode the server id
-			this.channel = this.bot.guilds.get("174405074087313408")
-			.channels.find("name", "dev");
+		if(this.connected) return;
 
-			// set avatar to whatever's in the folder atm
-			this.bot.user.setAvatar("./avatar.png");
-			
-			this.online = true;
-		});
+		this.bot.on("warn", (info) => { logger.warn(info); });
+		this.bot.on("error", (error) => { logger.error(error); });
 
-		this.bot.on("message", (message) => {
-			//== command parsing ==//
-			var args = message.content.split(" ");
-			if(args.length > 0) {
-				var root = args[0]; // set root to first argument
-				args.splice(0, 1); // remove first argument
 
-				if(this.commandMap.has(root)) {
-					try {
-						this.commandMap.get(root)(message.member, message.channel, args, this);
-					} catch(error) {
-						message.channel.sendMessage("```" + error.stack + "```");
+		return new Promise((resolve) => {
+			this.bot.once("ready", () => {
+
+				// save the rankings text channel into a variable
+				// TODO: don't hardcode the server id
+				this.channel = this.bot
+					.guilds.get("174405074087313408")
+					.channels.find(channel => channel.name === "dev");
+
+				// set avatar to whatever's in the folder atm
+				this.bot.user.setAvatar("./avatar.png")
+					.catch((e) => logger.error(e));
+
+				this.bot.on("message", (message) => {
+					//== command parsing ==//
+					var args = message.content.split(" ");
+					if(args.length > 0) {
+						var root = args[0]; // set root to first argument
+						args.splice(0, 1); // remove first argument
+
+						if(this.commandMap.has(root)) {
+							try {
+								this.commandMap.get(root)(message.member, message.channel, args, this);
+							} catch(error) {
+								message.channel.sendMessage("```" + error.stack + "```");
+							}
+						}
 					}
-				}
-			}
-		});
+				});
+				
+				this.connected = true;
+				logger.info("the discord bot is connected");
+				resolve();
+			});
+
+			this.bot.login(this.token);
+		})
+			.catch((e) => {
+				logger.error(e);
+			});
 	}
 
 	registerCommand(root, callback) {
 		this.commandMap.set(root, callback);
-		Logger.log("discord", `command registered: ${ root }`);
+		logger.info(`command registered: ${ root }`);
 	}
 
 	// onCommand(prefixes, callback) {
@@ -70,9 +98,7 @@ module.exports = class DiscordBot {
 	/**
 	 * Asks a user to type "yes" or "no" (or any shortcuts) and executes a callback.
 	 *
-	 * @param  {[type]}   member   [description]
-	 * @param  {Function} callback [description]
-	 * @return {[type]}            [description]
+	 * @return {Promise<boolean>} the user's response
 	 */
 	promptUserYN(member, channel, prompt) {
 		channel.sendMessage(prompt);
@@ -105,9 +131,7 @@ module.exports = class DiscordBot {
 	/**
 	 * Asks a user to type a string and executes a callback.
 	 *
-	 * @param  {[type]}   member   [description]
-	 * @param  {Function} callback [description]
-	 * @return {[type]}            [description]
+	 * @return {Promise<string>} the user's response
 	 */
 	promptUser(member, channel, prompt) {
 		channel.sendMessage(prompt);

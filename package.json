@@ -1,70 +1,80 @@
 {
-  "name": "shen-server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/leecccc/shen-server.git"
-  },
-  "dependencies": {
-    "cookie-parser": "^1.4.3",
-    "discord.js": "^11.0.0",
-    "dotenv": "^4.0.0",
-    "express": "^4.14.0",
-    "express-session": "^1.15.0",
-    "firebase-admin": "5.8.1",
-    "outdent": "^0.3.0",
-    "passport": "^0.3.2",
-    "passport-discord": "^0.1.1",
-    "validator": "9.2.0"
-  },
-  "author": "",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/leecccc/shen-server/issues"
-  },
-  "homepage": "https://github.com/leecccc/shen-server#readme",
-  "eslintConfig": {
-    "env": {
-      "browser": true,
-      "node": true,
-      "es6": true
-    },
-    "extends": "eslint:recommended",
-    "parserOptions": {
-      "sourceType": "module"
-    },
-    "rules": {
-      "no-unused-vars": [
-        "warn",
-        {
-          "vars": "all",
-          "args": "all",
-          "argsIgnorePattern": "^_"
-        }
-      ],
-      "indent": [
-        "error",
-        "tab"
-      ],
-      "linebreak-style": [
-        "error",
-        "windows"
-      ],
-      "quotes": [
-        "error",
-        "double"
-      ],
-      "semi": [
-        "error",
-        "always"
-      ],
-      "no-console": 0
-    }
-  }
+	"name": "shen-server",
+	"version": "1.0.0",
+	"description": "",
+	"main": "src/index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"start": "node src/index.js",
+		"docs": "jsdoc --verbose src/* -c ./docs/conf.json -u ./examples/ -t node_modules/tui-jsdoc-template"
+	},
+	"repository": "git+https://github.com/branden-akana/shen.git",
+	"dependencies": {
+		"chalk": "^2.4.1",
+		"colors": "1.3.2",
+		"cookie-parser": "^1.4.3",
+		"discord.js": "^11.0.0",
+		"dotenv": "^4.0.0",
+		"express": "^4.14.0",
+		"express-session": "^1.15.0",
+		"outdent": "^0.3.0",
+		"passport": "^0.3.2",
+		"passport-discord": "^0.1.1",
+		"passport-google-oauth": "^1.0.0",
+		"pg": "7.6.0",
+		"pug": "2.0.3",
+		"tui-jsdoc-template": "^1.2.2",
+		"uuid": "3.3.2",
+		"uuid-parse": "^1.0.0",
+		"validator": "9.2.0"
+	},
+	"author": "Branden Akana <branden.akana@gmail.com>",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/branden-akana/shen/issues"
+	},
+	"homepage": "https://github.com/branden-akana/shen",
+	"eslintConfig": {
+		"env": {
+			"browser": true,
+			"node": true,
+			"es6": true
+		},
+		"extends": "eslint:recommended",
+		"parserOptions": {
+			"sourceType": "module",
+			"ecmaVersion": 2017
+		},
+		"rules": {
+			"no-unused-vars": [
+				"warn",
+				{
+					"vars": "all",
+					"args": "all",
+					"argsIgnorePattern": "^_"
+				}
+			],
+			"indent": [
+				"warn",
+				"tab"
+			],
+			"linebreak-style": [
+				"error",
+				"windows"
+			],
+			"quotes": [
+				"error",
+				"double"
+			],
+			"semi": [
+				"error",
+				"always"
+			],
+			"no-console": 0
+		}
+	},
+	"devDependencies": {
+		"jsdoc": "^3.5.5",
+		"minami": "^1.2.3"
+	}
 }

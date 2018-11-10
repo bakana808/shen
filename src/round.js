@@ -7,15 +7,61 @@
  * round, such as the characters or map chosen.
  */
 class Round {
-	constructor(id, winners, options = {}) {
-		this.id = id;
-		this.winners = winners;
-		this.options = options;
 
-		Object.freeze(this);
+	/**
+	 * Creates a new round.
+	 *
+	 * @param {Object} options             Information about the round.
+	 * @param {number} options.id          The ID of this round.
+	 * @param {User[]} options.users       The users involved in the round.
+	 * @param {User[]} options.winners     The winners of the round.
+	 * @param {Object} [options.meta = {}] Metainfo about the round.
+	 */
+	constructor(options) {
+
+		/**
+		 * The ID of this round.
+		 *
+		 * @readonly
+		 * @type {number}
+		 */
+		Object.defineProperty(this, "id", { value: options.id, writable: false });
+
+		/**
+		 * The users involved in the round.
+		 *
+		 * @readonly
+		 * @type {User[]}
+		 */
+		Object.defineProperty(this, "users", { value: options.users, writable: false });
+
+		/**
+		 * The winners of this round.
+		 * Normally there should be only one winner, but just in case...
+		 *
+		 * @readonly
+		 * @type {User[]}
+		 */
+		Object.defineProperty(this, "winners", { value: options.winners, writable: false });
+
+		/**
+		 * Metainformation about the round.
+		 * This may include things such as stage, characters used, etc.
+		 *
+		 * @readonly
+		 * @type {Object}
+		 */
+		Object.defineProperty(this, "meta", { value: options.meta, writable: false });
+
+
 	}
 
-	// a shortcut to return only the first winner
+	/**
+	 * Returns the first winner of this round.
+	 * If a round somehow has more than one winner, then use round.winners instead.
+	 *
+	 * @returns {User} The winner of this round.
+	 */
 	get winner() { return this.winners[0]; }
 }
 

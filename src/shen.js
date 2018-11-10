@@ -13,12 +13,46 @@ var UserStatistics             = require("./tournament/statistics");
 var TournamentStandings        = require("./tournament/standings");
 var TournamentStandingsHistory = require("./tournament/history");
 
+const logger = new (require("./util/logger"))();
+
 /**
  * Contains all the basic API functions of this application.
  */
-class shen {
-	constructor() {
-		shen.db = null;
+class Shen {
+
+	/**
+	 * Constructs the central API object.
+	 *
+	 * @param {Object}          data        The components of the API.
+	 * @param {SQLDatabase}     data.db     The database.
+	 * @param {CommandListener} data.cl     The command listener.
+	 * @param {http.Server}     data.server The server.
+	 * @param {DiscordClient}   data.bot    The discord bot.
+	 */
+	constructor(data) {
+		this.db = data.db;
+
+		this.cl = data.cl;
+
+		this.server = data.server;
+
+		this.bot = data.bot;
+
+		if(Shen.instance) {
+			logger.warn("tried to create a new API instance; one already exists");
+		} else {
+			Shen.instance = this;
+		}
+	}
+
+	/**
+	 * Waits until every component is ready to use, then resolves.
+	 *
+	 * @returns {void}
+	 */
+	async init() {
+
+		await this.bot.init();
 	}
 
 	/**
@@ -29,7 +63,7 @@ class shen {
 	 * @param  {Database} database The database to use.
 	 */
 	static useDatabase(database) {
-		shen.db = database;
+		//shen.db = database;
 	}
 
 	//region// Tournament Functions ////////////////////////////////////////////
@@ -43,9 +77,9 @@ class shen {
 	 */
 	static fetchActiveTournament() {
 		return shen.db.fetchActiveTournamentID()
-		.then(tournamentID => {
-			return shen.db.fetchTournament(tournamentID);
-		});
+			.then(tournamentID => {
+				return shen.db.fetchTournament(tournamentID);
+			});
 	}
 
 	static fetchTournament(tournamentId) {
@@ -72,6 +106,15 @@ class shen {
 
 	//region// User Functions //////////////////////////////////////////////////
 
+	/**
+	 * Returns a User by their userID. If it doesn't exist, then a new
+	 * User will be created.
+	 *
+	 * @returns User
+	 */
+	static findOrCreateUser(userID) {
+		return shen.db.fetchUser
+	}
 	static fetchUser(userid) {
 		return shen.db.fetchUser(userid).then(users => {
 			if(users.length == 0) // user doesn't exist
@@ -88,8 +131,8 @@ class shen {
 		return shen.db.fetchUser(userIds);
 	}
 
-	static writeUser(userid) {
-		return shen.db.writeUser(userid);
+	static addUser(userid) {
+		return shen.db.addUser(userid);
 	}
 
 	//endregion//
@@ -97,20 +140,11 @@ class shen {
 	//region// Object Constructors /////////////////////////////////////////////
 
 	/**
-	 * Constructs a new User object, given an ID and nickname.
+	 * Constructs a new User object.
 	 *
-	 * @param  {string} id       the user's ID
-	 * @param  {string} nickname the nickname of the user
-	 * @returns {User}           a new User object
+	 * @returns {User} a new User object
 	 */
-	static User(id, nickname =  null) {
-		if(nickname == null) {
-			// create a dummy user
-			Logger.warn("Dummy user was created for: " + id);
-			return new User({ id: id, nickname: id });
-		}
-		return new User({ id: id, nickname: nickname });
-	}
+	static User(data) { return new User(data); }
 
 	// static Player(user, tournament) {
 	// 	return new Player(user, { tournament: tournament });
@@ -263,7 +297,9 @@ class shen {
 	 * Returns the argument if it is already an array, but converts it into
 	 * an array containing the argument otherwise.
 	 *
-	 * @returns {*[]} an array
+	 * @param {*|Array} a value of any type or an array of any type
+	 *
+	 * @returns {Array} an array equal to the array provided, or a new array containing the provided value
 	 */
 	static toArray(a) {
 		if(a instanceof Array) { return a; }
@@ -283,6 +319,36 @@ class shen {
 		}
 		a.forEach((_v, k) => { if(k in b) a[k] = b[k]; });
 	}
+
+	/**
+	 * Checks a userID to see if it is valid.
+	 * UserIDs come in the form "<username>#<discriminator>", where
+	 * the username can only be alphanumeric, and
+	 * the disciminator can only be numeric.
+	 *
+	 * @returns {boolean} true if the userID is valid
+	 */
+	static checkNametag(nametag) {
+
+		if(!nametag.includes("#")) return false;
+
+		let split = nametag.split("#");
+		let username = split[0];
+		let tag = split[1];
+
+		if(username.match("^[0-9a-zA-Z_]*$") == null) return false;
+		if(tag.match("^[0-9]*$") == null) return false;
+
+		return true;
+	}
 }
 
-module.exports = shen;
+module.exports = Shen;
+
+/**
+ * Returns the current instance of the API.
+ *
+ * @return {Shen} The API.
+ */
+module.exports.shen = () => { return Shen.instance; };
+

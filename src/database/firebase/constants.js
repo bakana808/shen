@@ -7,8 +7,10 @@ class Ref {
 
 const Keys = exports.Keys = {
 	// users
-	users: "users",
-	user: (userID) => `${Keys.users}/${userID}`,
+	USERS: "users",
+	USER: (userID) => `${Keys.users}/${userID}`,
+
+	USERID: (nametag) => `user-lookup/${ nametag }`,
 
 	// tournaments
 	activeTournament: "rankings/active-tournament",

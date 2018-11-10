@@ -10,7 +10,7 @@ class Identifiable {
 
 		/**
 		 * The identifier for this object.
-		 * @type {string} | {number}
+		 * @type {string|number}
 		 */
 		Object.defineProperty(this, "id", {value: options.id});
 	}
