@@ -176,15 +176,14 @@ class Match {
 		return this.users[n];
 	}
 
-	getOpponent(user) { return this.getOpponents(user)[0]; }
+	opponentOf(user) { return this.opponentsOf(user)[0]; }
 
-	getOpponents(user) {
-		if(!this.hasUser(user))
-			throw new ReferenceError("This player does not exist in this match.");
+	opponentsOf(user) {
+
 		var opponents = [];
-		this.users.forEach(_user => {
-			if(!_user.equals(user)) opponents.push(_user);
-		});
+		for(let u of this.users)
+			if(!user.equals(u)) opponents.push(u);
+
 		return opponents;
 	}
 

@@ -1,5 +1,5 @@
 
-//const Logger = require("./util/logger");
+const Logger = require("./util/logger");
 const chalk = require("chalk");
 
 /**
@@ -88,9 +88,17 @@ class User {
 	 */
 	equals(user) {
 		if(user == null) return false;
-		return (user.uuid == this.uuid)
-			&& (user.name == this.name)
-			&& (user.discriminator == this.discriminator);
+
+		let cond1 = (user.uuid == this.uuid);
+		//Logger.info(`${user.uuid} === ${this.uuid} (${cond1})`);
+
+		let cond2 = (user.name == this.name);
+		//Logger.info(`${user.name} === ${this.name} (${cond2})`);
+
+		let cond3 = (user.discriminator == this.discriminator);
+		//Logger.info(`${user.discriminator} === ${this.discriminator} (${cond3})`);
+
+		return cond1 && cond2 && cond3;
 	}
 
 	static getUser(users, userId) {
@@ -112,7 +120,7 @@ class User {
 	/**
 	 * @override
 	 */
-	toString() { return this.tag(); }
+	toString() { return this.tag; }
 }
 
 module.exports = User;

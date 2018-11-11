@@ -13,6 +13,8 @@ const Round = require("../round");
 const Match = require("../match");
 const MatchBuilder = require("../matchbuilder");
 
+const { getRoundWins, getMatchPoint } = require("../util/matchutils");
+
 /**
  * A PostgreSQL Database.
  *
@@ -303,6 +305,14 @@ class SQLDatabase {
 		});
 	}
 
+	async getUsers(uuids) {
+		const q = "SELECT * FROM users WHERE uuid = ANY($1)";
+
+		let res = await this.pquery(q, [uuids]);
+
+		return res.rows.map(row => this._constructUser(row));
+	}
+
 	/**
 	 * Retrieves all users from the database.
 	 * Not recommended when the user table becomes large.
@@ -495,8 +505,8 @@ class SQLDatabase {
 		
 		let row = res.rows[0];
 		
-		let users = await Promise.all(row.users.map(async (uuid) => await this.get_user(uuid)));
-		let winners = await Promise.all(row.winners.map(async (uuid) => await this.get_user(uuid)));
+		let users =   await this.getUsers(row.users);
+		let winners = await this.getUsers(row.winners);
 
 		return new Round({
 			id: id,
@@ -508,24 +518,36 @@ class SQLDatabase {
 
 	async _constructMatch(row) {
 
-		/* map user ids to user objects */
-
-		let users = await Promise.all(row.users.map(async (uuid) => await this.get_user(uuid)));
-		//let winners = await Promise.all(row.winners.map(async (uuid) => await this.get_user(uuid)));
-
-		var mb = await MatchBuilder.create({
-			id: row.id,
-			users: users,
-			num_rounds: row.num_rounds
-		});
+		if(row.in_progress)
+			throw new Error(`cannot construct an empty match (id=${row.id})`);
+		
+		let users =   await this.getUsers(row.users);
+		let winners;
 
 		let promises = row.rounds.map(async (r_id) => await this.getRound(r_id));
 		let rounds = await Promise.all(promises);
 
-		for(let i = 0; i < rounds.length; i++)
-			await mb.addRound(rounds[i]);
+		if(!row.winners || row.winners.length == 0) {
+			logger.warn(`match #${row.id} is missing winners, calculating manually`);
 
-		return mb.getMatch();
+			let matchPoint = getMatchPoint(row.num_rounds);
+			winners = [];
+
+			for(let user of users) {
+				if(getRoundWins(user, rounds) >= matchPoint) winners.push(user);
+			}
+		} else {
+			winners = await this.getUsers(row.winners);
+		}
+
+		return new Match({
+			id:         row.id,
+			users:      users,
+			winners:    winners,
+			tournament: row.tournament,
+			num_rounds: row.num_rounds,
+			rounds:     rounds
+		});
 	}
 	
 	/**

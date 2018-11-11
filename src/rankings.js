@@ -42,6 +42,10 @@ class Rankings {
 		this.stat_map = new Map();
 	}
 
+	getStats(user) { return this.stat_map.get(user.uuid); }
+
+	setStats(user, stats) { this.stat_map.set(user.uuid, stats); }
+
 	/**
 	 * A function that initializes the stats of a user.
 	 * @callback InitFn
@@ -67,35 +71,62 @@ class Rankings {
 	 * If a tournament is provided, only matches of that tournament will be read.
 	 * If no tournament is provided, all matches will be read.
 	 *
-	 * @param {?Tournament} tournament The tournament to take matches from.
-	 * @param {InitFn}      init_fn    The initialize function.
-	 * @param {MatchFn}     match_fn   The match function.
+	 * @param {Object}      options            The ranking options.
+	 * @param {?Tournament} options.tournament The tournament to take matches from.
+	 * @param {InitFn}      options.init_fn    The initialize function.
+	 * @param {MatchFn}     options.match_fn   The match function.
+	 * @param {EndFn}       options.end_fn     The end function.
+	 * @param {SortFn}      options.sort_fn    The method of which to sort users.
 	 */
-	static async calculate(tournament = null, init_fn, match_fn) {
+	static async calculate(options) {
 
 		var users = await shen().db.getAllUsers();
+		var matches = await shen().db.getAllMatches();
 
 		var rankings = new Rankings({
-			tournament: tournament,
+			tournament: options,
 			users: users
 		});
 
-		var matches = await shen().db.getAllMatches();
-
 		// init statistics
 		users.forEach(user => {
-			rankings.stat_map.set(user.uuid, init_fn(user));
+			let stats = options.init_fn(user);
+			stats._user = user; // internal user object
+			rankings.setStats(user, stats);
 		});
 
+		// match function
 		matches.forEach(m => {
+
+			let statChanges = [];
 			m.users.forEach(u => {
 
-				let stats = rankings.stat_map.get(u.uuid);
-				rankings.stat_map.set(u.uuid, match_fn(u, stats, m));
+				let stats = rankings.getStats(u);
+				stats = options.match_fn(u, stats, m, rankings);
+				statChanges.push([u, stats]);
 			});
+		
+			for(let tuple of statChanges)
+				rankings.setStats(tuple[0], tuple[1]);
 		});
 
-		return rankings;
+		// end statistics
+		if(!options.end_fn) options.end_fn = (_user, stats) => stats;
+		users.forEach(user => {
+
+			let stats = rankings.getStats(user);
+			stats = options.end_fn(user, stats);
+			rankings.setStats(user, stats);
+		});
+
+		// sort users
+		let tuples = Array.from(rankings.stat_map);
+		Logger.info(tuples);
+		tuples.sort((a, b) => options.sort_fn(a[1], b[1]));
+		// replace user uuids with users
+		tuples = tuples.map(tuple => [tuple[1]._user, tuple[1]]);
+
+		return tuples;
 	}
 }
 
