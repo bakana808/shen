@@ -49,6 +49,13 @@ class SQLDatabase {
 		 */
 		this.client;
 
+		/**
+		 * A cache of uuids to users for faster queries
+		 *
+		 * @member {Map<string, User>}
+		 */
+		this.userCache = new Map();
+
 		/* create user table */
 		this.query(`
 			CREATE TABLE IF NOT EXISTS users(
@@ -181,6 +188,30 @@ class SQLDatabase {
 	//==========================================================================
 	// USER QUERIES
 	//==========================================================================
+	
+	/**
+	 * Caches a user. This will be used where possible for future calls to getUser or getUsers.
+	 *
+	 * @param {User} user The user to cache.
+	 *
+	 * @returns {User} The user that was cached.
+	 */
+	async _cacheUser(user) {
+		this.userCache.set(user.uuid, user);
+
+		return user;
+	}
+
+	/**
+	 * Tries to find a cached user. If this user wasn't cached, null will be returned.
+	 *
+	 * @param {string} uuid The uuid of the user to retrieve.
+	 *
+	 * @returns {?User} The cached user or null.
+	 */
+	async _getCachedUser(uuid) {
+		return this.userCache.get(uuid) || null;
+	}
 
 	/**
 	 * Adds a user. The name of the user must be a string of 32 characters or less.
@@ -286,31 +317,45 @@ class SQLDatabase {
 	/**
 	 * Retrieves a user from the database by their UUID.
 	 *
-	 * @async
 	 * @param {string} uuid the UUID of the user
 	 *
 	 * @returns {Promise<User>} the user that was retrieved
 	 */
-	get_user(uuid) {
-		const statement = `
-			SELECT * FROM users WHERE uuid=$1
-		`;
+	async get_user(uuid) {
 
-		return this.pquery(statement, [uuid]).then((res) => {
+		// attempt to retrieve from cache
+		let user = await this._getCachedUser(uuid);
+		if(user) return user;
 
-			if(res.rows.length == 0)
-				throw new Error("this user does not exist (uuid = " + uuid + ")");
+		// not cached - do a query
+		const q = "SELECT * FROM users WHERE uuid=$1";
 
-			return this._constructUser(res.rows[0]);
-		});
+		let res = await this.pquery(q, [uuid]);
+
+		if(res.rows.length == 0)
+			throw new Error("this user does not exist (uuid = " + uuid + ")");
+
+		return await this._cacheUser(this._constructUser(res.rows[0]));
 	}
 
 	async getUsers(uuids) {
+
+		let users = [],
+			remaining = []; // remaining uncached uuids for the query
+
+		// find cached users
+		for(let uuid of uuids) {
+			let user = await this._getCachedUser(uuid);
+			if(user) users.push(user); // add to users if cache found
+			else remaining.push(uuid); // add to remaining if no cache found
+		}
+
+		// do a query for the remaining uuids
 		const q = "SELECT * FROM users WHERE uuid = ANY($1)";
 
-		let res = await this.pquery(q, [uuids]);
+		let res = await this.pquery(q, [remaining]);
 
-		return res.rows.map(row => this._constructUser(row));
+		return users.concat(res.rows.map(row => this._constructUser(row)));
 	}
 
 	/**
