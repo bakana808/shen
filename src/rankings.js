@@ -42,9 +42,13 @@ class Rankings {
 		this.stat_map = new Map();
 	}
 
-	getStats(user) { return this.stat_map.get(user.uuid); }
+	setStats(user, stats) { this.stat_map.set(user.uuid, [user, stats]); }
 
-	setStats(user, stats) { this.stat_map.set(user.uuid, stats); }
+	getStats(user) {
+		var tuple = this.stat_map.get(user.uuid);
+		return JSON.parse(JSON.stringify(tuple[1]));
+	}
+
 
 	/**
 	 * A function that initializes the stats of a user.
@@ -91,7 +95,6 @@ class Rankings {
 		// init statistics
 		users.forEach(user => {
 			let stats = options.init_fn(user);
-			stats._user = user; // internal user object
 			rankings.setStats(user, stats);
 		});
 
@@ -122,9 +125,9 @@ class Rankings {
 		// sort users
 		let tuples = Array.from(rankings.stat_map);
 		Logger.info(tuples);
-		tuples.sort((a, b) => options.sort_fn(a[1], b[1]));
+		tuples.sort((a, b) => options.sort_fn(a[1][1], b[1][1]));
 		// replace user uuids with users
-		tuples = tuples.map(tuple => [tuple[1]._user, tuple[1]]);
+		tuples = tuples.map(tuple => tuple[1]);
 
 		return tuples;
 	}

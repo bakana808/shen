@@ -36,12 +36,12 @@ module.exports.ladder_rank = async (sender, args) => {
 
 		let adjustment = Math.ceil(Elo.adjust(stats.rating, ostats.rating, score, 100));
 
-		stats.rating += adjustment;
-
 		sender.info(chalk.green(`match #${ match.id } > `) +
-			"modified stats for " + user.tagc +
-			" (" + (adjustment >= 0 ? chalk.green("+"+adjustment) : chalk.red(adjustment)) + ")"
+			user.tagc + `: ${ stats.rating } <=> ${ ostats.rating } ` +
+			"(" + (adjustment >= 0 ? chalk.green("+"+adjustment) : chalk.red(adjustment)) + ")"
 		);
+
+		stats.rating += adjustment;
 
 		return stats;
 	};
