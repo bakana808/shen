@@ -2,6 +2,7 @@
 const chalk = require("chalk");
 
 class Logger {
+
 	/**
 	 * Logs a message to the console. If two arguments are used,
 	 * the first argument will be used as the prefix.

@@ -1,12 +1,17 @@
 
+/* For timing functions */
+const { performance } = require("perf_hooks");
+
+/* PostgreSQL API */
 const { Client } = require("pg");
+
 const { parse, unparse } = require("uuid-parse");
 const chalk = require("chalk");
 
 const logger = new (require("../util/logger"))("sql");
 
-const uuidv4 = require("uuid/v4");
-const UUID_LENGTH = 36; // 32 hex + 4 dashes
+//const uuidv4 = require("uuid/v4");
+//const UUID_LENGTH = 36; // 32 hex + 4 dashes
 
 const User = require("../user");
 const Round = require("../round");
@@ -74,8 +79,8 @@ class SQLDatabase {
 
 				game integer DEFAULT null,
 
-				users   CHAR(${UUID_LENGTH})[],
-				winners CHAR(${UUID_LENGTH})[]
+				users   UUID[],
+				winners UUID[]
 			);
 		`);
 
@@ -89,8 +94,8 @@ class SQLDatabase {
 				num_rounds integer DEFAULT 0,
 				rounds     integer[],
 
-				users      CHAR(${UUID_LENGTH})[],
-				winners    CHAR(${UUID_LENGTH})[]
+				users      UUID[],
+				winners    UUID[]
 			);
 		`);
 	}
@@ -310,8 +315,10 @@ class SQLDatabase {
 	 *
 	 * @returns {User} The user that was constructed.
 	 */
-	_constructUser(row) {
-		return new User({ uuid: row.uuid, name: row.name, discriminator: row.discriminator});
+	async _constructUser(row) {
+		let user = new User({ uuid: row.uuid, name: row.name, discriminator: row.discriminator});
+		await this._cacheUser(user);
+		return user;
 	}
 
 	/**
@@ -335,27 +342,40 @@ class SQLDatabase {
 		if(res.rows.length == 0)
 			throw new Error("this user does not exist (uuid = " + uuid + ")");
 
-		return await this._cacheUser(this._constructUser(res.rows[0]));
+		return await this._constructUser(res.rows[0]);
 	}
 
 	async getUsers(uuids) {
+		let t = performance.now();
 
 		let users = [],
 			remaining = []; // remaining uncached uuids for the query
 
 		// find cached users
 		for(let uuid of uuids) {
+
 			let user = await this._getCachedUser(uuid);
 			if(user) users.push(user); // add to users if cache found
 			else remaining.push(uuid); // add to remaining if no cache found
 		}
 
 		// do a query for the remaining uuids
-		const q = "SELECT * FROM users WHERE uuid = ANY($1)";
+		if(remaining.length > 0) {
 
-		let res = await this.pquery(q, [remaining]);
+			const q = "SELECT * FROM users WHERE uuid = ANY($1)";
 
-		return users.concat(res.rows.map(row => this._constructUser(row)));
+			let res = await this.pquery(q, [remaining]);
+
+			// combined cached users and queried users
+			for(let row of res.rows) {
+
+				users.push(await this._constructUser(row));
+			}
+		}
+
+		logger.info(`retrieved ${ uuids.length } users (${ (performance.now() - t).toFixed(2) }ms)`);
+
+		return users;
 	}
 
 	/**
@@ -369,7 +389,13 @@ class SQLDatabase {
 
 		var res = await this.query(q);
 
-		return res.rows.map(row => this._constructUser(row));
+		let users = [];
+		for(let row of res.rows) {
+
+			users.push(await this._constructUser(row));
+		}
+		
+		return users;
 	}
 
 	/**
@@ -561,6 +587,38 @@ class SQLDatabase {
 		});
 	}
 
+	/**
+	 * Retrieves multiple rounds from the database.
+	 *
+	 * @param {number[]} ids The IDs of the rounds to retrieve.
+	 *
+	 * @returns {Round[]} rounds The rounds that was retrieved.
+	 */
+	async getRounds(ids) {
+		let t1 = performance.now();
+
+		const q = "SELECT * FROM rounds WHERE id = ANY($1)";
+
+		let res = await this.pquery(q, [ids]);
+
+		let rounds = Promise.all(res.rows.map(async row => {
+
+			let users = await this.getUsers(row.users);
+			let winrs = await this.getUsers(row.winners);
+
+			return new Round({
+				id: row.id,
+				users: users,
+				winners: winrs,
+				meta: {} //TODO implement
+			});
+		}));
+
+		logger.info(`retrieved rounds ${ ids } (${ performance.now() - t1 }ms)`);
+
+		return rounds;
+	}
+
 	async _constructMatch(row) {
 
 		if(row.in_progress)
@@ -569,8 +627,7 @@ class SQLDatabase {
 		let users =   await this.getUsers(row.users);
 		let winners;
 
-		let promises = row.rounds.map(async (r_id) => await this.getRound(r_id));
-		let rounds = await Promise.all(promises);
+		let rounds = await this.getRounds(row.rounds);
 
 		if(!row.winners || row.winners.length == 0) {
 			logger.warn(`match #${row.id} is missing winners, calculating manually`);
@@ -625,8 +682,12 @@ class SQLDatabase {
 
 		let rows = res.rows.filter(row => !row.in_progress);
 
-		let promises = rows.map(async (row) => await this._constructMatch(row));
-		return await Promise.all(promises);
+		let matches = [];
+		for(let row of rows) {
+			matches.push(await this._constructMatch(row));
+		}
+
+		return matches;
 	}
 
 	/**

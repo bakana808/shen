@@ -283,7 +283,8 @@ shen.init().then(() => {
 			return new Promise((resolve) => {
 				rl.question("question ".gray + msg, (answer) => resolve(answer));
 			});
-		}
+		},
+		append: (msg) => process.stdout.write(msg)
 	};
 
 	rl.prompt();

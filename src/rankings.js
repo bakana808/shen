@@ -124,7 +124,10 @@ class Rankings {
 
 		// sort users
 		let tuples = Array.from(rankings.stat_map);
-		Logger.info(tuples);
+		
+		for(let tuple of tuples) {
+			Logger.info("key: " + tuple[0] + ", value: " + tuple[1]);
+		}
 		tuples.sort((a, b) => options.sort_fn(a[1][1], b[1][1]));
 		// replace user uuids with users
 		tuples = tuples.map(tuple => tuple[1]);

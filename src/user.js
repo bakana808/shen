@@ -87,15 +87,15 @@ class User {
 	 * @returns {boolean} True if these users are equal.
 	 */
 	equals(user) {
-		if(user == null) return false;
+		if(user === null) return false;
 
-		let cond1 = (user.uuid == this.uuid);
+		let cond1 = (user.uuid === this.uuid);
 		//Logger.info(`${user.uuid} === ${this.uuid} (${cond1})`);
 
-		let cond2 = (user.name == this.name);
+		let cond2 = (user.name === this.name);
 		//Logger.info(`${user.name} === ${this.name} (${cond2})`);
 
-		let cond3 = (user.discriminator == this.discriminator);
+		let cond3 = (user.discriminator === this.discriminator);
 		//Logger.info(`${user.discriminator} === ${this.discriminator} (${cond3})`);
 
 		return cond1 && cond2 && cond3;
