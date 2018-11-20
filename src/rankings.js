@@ -34,21 +34,38 @@ class Rankings {
 		Object.defineProperty(this, "users", {value: data.users});
 
 		/**
-		 * The map of users to their statistics.
-		 * Statistics may vary by the system of ranking.
+		 * The map of users to an object representing their statistics.
+		 * Note that the stats object is arbitrary and can widely vary depending
+		 * on the system used for ranking.
 		 *
 		 * @type {Map<User, Object>}
 		 */
 		this.stat_map = new Map();
 	}
 
+	/**
+	 * Sets the stats object for a user.
+	 *
+	 * @param {User}   user  The user.
+	 * @param {Object} stats This user's stats object.
+	 */
 	setStats(user, stats) { this.stat_map.set(user.uuid, [user, stats]); }
 
+	/**
+	 * Retrieves the stats object for a user.
+	 * Note that this function will return a copy of the original stat object
+	 * as to not allow accidental edits of the original.
+	 * Please use a combination of {@link getStats()} and {@link setStats()} to
+	 * edit stats.
+	 *
+	 * @param {User} user The user.
+	 *
+	 * @returns {Object} A copy of this user's stats object.
+	 */
 	getStats(user) {
 		var tuple = this.stat_map.get(user.uuid);
 		return JSON.parse(JSON.stringify(tuple[1]));
 	}
-
 
 	/**
 	 * A function that initializes the stats of a user.
@@ -77,9 +94,9 @@ class Rankings {
 	 *
 	 * @param {Object}      options            The ranking options.
 	 * @param {?Tournament} options.tournament The tournament to take matches from.
-	 * @param {InitFn}      options.init_fn    The initialize function.
-	 * @param {MatchFn}     options.match_fn   The match function.
-	 * @param {EndFn}       options.end_fn     The end function.
+	 * @param {InitFn}      options.onStart    The initialize function.
+	 * @param {MatchFn}     options.onMatch   The match function.
+	 * @param {EndFn}       options.onFinish     The end function.
 	 * @param {SortFn}      options.sort_fn    The method of which to sort users.
 	 */
 	static async calculate(options) {
@@ -94,7 +111,7 @@ class Rankings {
 
 		// init statistics
 		users.forEach(user => {
-			let stats = options.init_fn(user);
+			let stats = options.onStart(user);
 			rankings.setStats(user, stats);
 		});
 
@@ -105,7 +122,7 @@ class Rankings {
 			m.users.forEach(u => {
 
 				let stats = rankings.getStats(u);
-				stats = options.match_fn(u, stats, m, rankings);
+				stats = options.onMatch(u, stats, m, rankings);
 				statChanges.push([u, stats]);
 			});
 		
@@ -114,11 +131,11 @@ class Rankings {
 		});
 
 		// end statistics
-		if(!options.end_fn) options.end_fn = (_user, stats) => stats;
+		if(!options.onFinish) options.end_fn = (_user, stats) => stats;
 		users.forEach(user => {
 
 			let stats = rankings.getStats(user);
-			stats = options.end_fn(user, stats);
+			stats = options.onFinish(user, stats);
 			rankings.setStats(user, stats);
 		});
 

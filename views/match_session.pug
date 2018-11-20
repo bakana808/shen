@@ -1,0 +1,18 @@
+
+mixin content
+
+	div
+		div
+			label() Stage
+			select(name='dropDown', id='')
+				each stage in Stages
+					option=stage
+
+		div
+			label() Character
+			select(name='dropDown', id='')
+				each character in Characters
+					option=character
+
+include template
+

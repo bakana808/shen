@@ -4,45 +4,45 @@
  * loads up everything we need for the program.
  */
 
-// 1) Load Dependencies {{{
+//==============================================================================
+// Dependencies
+//==============================================================================
 
-const CommandListener = require("./cmd/listener");
+const util =  require("util");  // used to print objects
+const chalk = require("chalk"); // for printing colors
 
-const util = require("util");
-
-require("colors");
-
-const os            = require("os");
-
-const readline      = require("readline");
+const readline      = require("readline"); // used for CLI
 const logger        = require("./util/logger");
 
-var passport        = require("passport");
+// passport.js + extras
 
+const passport        = require("passport");
 const DiscordStrategy = require("passport-discord").Strategy;
-const GoogleStrategy = require("passport-google-oauth").OAuth2Strategy;
+const GoogleStrategy  = require("passport-google-oauth").OAuth2Strategy;
+
+// express.js + extras
 
 var express         = require("express");
 var cookieParser    = require("cookie-parser");
 var session         = require("express-session");
 
-var Shen             = require("./shen");
-//var FirebaseDatabase = require("./database/firebase");
-const SQLDatabase    = require("./database/sql");
-var DiscordBot       = require("./discord/bot");
-var DiscordCommands  = require("./discord/commands");
-var User             = require("./user");
-var ApiRouter        = require("./router/api");
+// local dependencies
+const { shen, init }  = require("./shen");
+const SQLDatabase     = require("./database/sql");
+const DiscordBot      = require("./discord/bot");
+const DiscordCommands = require("./discord/commands");
+const CommandListener = require("./cmd/listener");
 
-// }}}
-// 2) Load .env Variables {{{
+//==============================================================================
+// Configure Environment Variables
+//==============================================================================
 
 // run dotenv to load variables from .env
 require("dotenv").config();
 
 //== config object -- holds environment variables ==/
-var config = {
-	firebase: {
+const config = {
+	firebase: { // no longer used
 		email:       process.env.FIREBASE_CLIENT_EMAIL,
 		key:         process.env.FIREBASE_PRIVATE_KEY,
 		id:          process.env.FIREBASE_PROJECT_ID,
@@ -56,8 +56,9 @@ var config = {
 	port: isNaN(process.env.PORT) ? 5000 : process.env.PORT
 };
 
-// }}}
-// 3) Connect to SQL Database {{{
+//==============================================================================
+// Configure SQL Database
+//==============================================================================
 
 var db = new SQLDatabase();
 
@@ -73,20 +74,24 @@ shen.fetchActiveTournament()
 	.catch(error => console.log(error.stack));
 */
 
-// }}}
-// 4) Configure Passport.js {{{
+//==============================================================================
+// Configure Passport.js
+//==============================================================================
 
-passport.serializeUser((user, done) => {
-	done(null, user.id);
+// User Serialization ----------------------------------------------------------
+
+passport.serializeUser((user, done) =>
+{
+	done(null, user.uuid); // convert user into uuid
 });
 
-passport.deserializeUser((id, done) => {
-	shen.db.get_user(id).then((user) => {
-		done(null, user);
-	});
+passport.deserializeUser(async (uuid, done) =>
+{
+	let user = await shen().db.get_user(uuid); // convert uuid into user
+	done(null, user);
 });
 
-// DISCORD STRATEGY ============================================================
+// Strategies ------------------------------------------------------------------
 
 passport.use(new DiscordStrategy(
 	{
@@ -96,23 +101,24 @@ passport.use(new DiscordStrategy(
 		proxy: true,
 		passReqToCallback: true
 	},
-	(_req, _accessToken, _refreshToken, profile, done) => {
+	async (_req, _accessToken, _refreshToken, profile, done) => {
 	
 		// attempt to get a user with this discord ID
-		shen.db.get_user_discord(profile.id)
-			.then((user) => { done(null, user); })
-			.catch((_e) => {
+		let user = await shen().db.get_user_discord(profile.id);
 
-				return shen.db.add_user(profile.username)
-					.then((user) => {
-						return shen.db.link_user_discord(profile.id, user.id);
-					})
-					.then((user) => { done(null, user); })
-					.catch((_e) => {
-						logger.error(_e);
-						done(null, false);
-					});
-			});
+		if(user) // return user
+		{
+			logger.info(`discord user logged in ${ user.tag }`);
+			done(null, user);
+		}
+		else // create a new user
+		{
+			logger.info(`creating new user for discord user ${ profile.tag }`);
+			user = await shen().db.add_user(profile.username);
+			user = await shen().db.link_user_discord(profile.id, user.id);
+
+			done(null, user);
+		}
 	})
 );
 
@@ -129,7 +135,7 @@ passport.use(new GoogleStrategy(
 		if(req.user) { // link profiles
 
 			if(profile._json.domain == "hawaii.edu") {
-				logger.info("flagging user " + req.user.toString().green + " as verified (hawaii.edu)");
+				logger.info("flagging user " + chalk.green(req.user.toString()) + " as verified (hawaii.edu)");
 				shen.db.verifyUser(req.user.id)
 					.then(() => cb(null, req.user));
 			}
@@ -138,32 +144,37 @@ passport.use(new GoogleStrategy(
 	}
 ));
 
-// }}}
-// 5) Configure Express.js {{{
+//==============================================================================
+// Configure Express.js
+//==============================================================================
 
 const app =  express();
 const port = config.port;
 
-//app.engine("html", require("ejs").renderFile);
 app.set("view engine", "pug");
 app.set("json replacer", null);
 app.set("json spaces", 4);
 
 // add sessions and passport to express
+
 app.use(cookieParser());
-app.use("assets", express.static(__dirname + "/../site")); // __dirname => shen-server/src
+app.use(session({
+	store: new (require("connect-pg-simple")(session))(),
+	secret: "persist123", // TODO move this to environment variable
+	resave: false,
+	cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
+}));
+
+//app.use("assets", express.static(__dirname + "/../site")); // __dirname => shen-server/src
 //app.use("/views", express.static(__dirname + "/views"));
-app.use(session({ secret: "persist123" }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// }}}
-// 6) Define Routes {{{
+// use router/webapp.js as main router
 
-// route all API calls to the API router
-app.use("/api", (new ApiRouter(express.Router())).router);
+app.use("/", require("./router/webapp"));
 
-// DISCORD AUTH ROUTES =========================================================
+// Passport Authentication Routes ----------------------------------------------
 
 app.get("/auth/discord", passport.authenticate("discord", { scope: "identify" }));
 
@@ -177,18 +188,9 @@ app.get("/auth/google/cb",
 	passport.authenticate("google", { successRedirect: "/profile", failureRedirect: "/auth/google" })
 );
 
-// user-related routes
-app.get("/profile", (req, res) => {
-	var user = req.user;
-	if(user == null) {
-		res.redirect("/");
-	} else {
-		res.render("profile", { user: user.username });
-	}
-});
-
-// }}}
-// 7) Initialize CLI & Commands {{{
+//==============================================================================
+// Configure Command Listener
+//==============================================================================
 
 // command listener
 var cl = new CommandListener();
@@ -214,7 +216,7 @@ cl.register("sql-test", async (sender, _args) => {
 cl.register("sql-query", (sender, args) => {
 
 	var statement = args.join(" ");
-	sender.info("sending query " + statement.green);
+	sender.info("sending query " + chalk.green(statement));
 
 	var time = Date.now();
 	db.query(statement)
@@ -246,19 +248,20 @@ cl.register("list-users", async (sender, args) => {
 var server = app.listen(port);
 logger.info(`listening on ${ server.address().address }:${ server.address().port }...`);
 
-var shen = new Shen({
+// =============================================================================
+// Configuration is done; Startup everything and begin CLI
+// =============================================================================
+
+init({
 	db: db,
 	cl: cl,
 	server: server,
-	bot: new DiscordBot(config.discord.botToken)
-});
-
-// =============================================================================
-// Configuration is done - start CLI
-// =============================================================================
-
-shen.init().then(() => {
-
+	bot: new DiscordBot({
+		token: config.discord.botToken,
+		server: process.env.DISCORD_SERVER_ID
+	})
+}).then(() =>
+{
 	// readline interface
 	var rl = readline.createInterface({
 		input: process.stdin,
@@ -281,7 +284,7 @@ shen.init().then(() => {
 		error: (msg) => logger.error(msg),
 		prompt: (msg) => {
 			return new Promise((resolve) => {
-				rl.question("question ".gray + msg, (answer) => resolve(answer));
+				rl.question(chalk.gray("question ") + msg, (answer) => resolve(answer));
 			});
 		},
 		append: (msg) => process.stdout.write(msg)
@@ -301,5 +304,4 @@ shen.init().then(() => {
 	rl.on("close", () => {
 		db.close();
 	});
-
 });

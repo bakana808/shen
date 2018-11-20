@@ -1,0 +1,19 @@
+
+div.page-header
+	div.wrapper
+		div.navbar.navbar--left
+			ul
+				li.navbar-item
+					a(href="/") home
+				li.navbar-item
+					a(href="/") ladder
+				li.navbar-item
+					a(href="/") about
+		div.navbar.navbar--right
+			ul
+				li.navbar-item
+					if user == null
+						a(href="/auth/discord") login
+					else
+						a(href="/profile") logged in as #{ user.tag }
+

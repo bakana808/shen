@@ -46,16 +46,6 @@ class Shen {
 	}
 
 	/**
-	 * Waits until every component is ready to use, then resolves.
-	 *
-	 * @returns {void}
-	 */
-	async init() {
-
-		await this.bot.init();
-	}
-
-	/**
 	 * @static
 	 * Defines which database this API should use. All further functions that
 	 * use a database will use this one.
@@ -66,7 +56,9 @@ class Shen {
 		//shen.db = database;
 	}
 
-	//region// Tournament Functions ////////////////////////////////////////////
+	//==========================================================================
+	// TOURNAMENT METHODS
+	//==========================================================================
 
 	/**
 	 * @static
@@ -351,4 +343,16 @@ module.exports = Shen;
  * @return {Shen} The API.
  */
 module.exports.shen = () => { return Shen.instance; };
+
+/**
+ * Waits until every component is ready to use, then resolves.
+ *
+ * @returns {void}
+ */
+module.exports.init = async (data) =>
+{
+	let shen = new Shen(data);
+
+	await shen.bot.connect();
+};
 

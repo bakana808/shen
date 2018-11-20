@@ -33,98 +33,16 @@ function formatMatch(userid, match, stats) {
 	return null;
 }
 
-function do_while(action, condition) {
-
-	return new Promise((resolve) => {
-
-		action().then((res) => {
-
-			function loop(res) {
-
-				Promise.resolve().then(() => condition(res))
-					.then((cond) => {
-						cond
-							? action(res).then((res) => loop(res))
-							: resolve(res);
-					});
-			}
-			return loop(res);
-		});
-	});
-}
-
-function while_do(condition, action) {
-
-	return new Promise((resolve) => {
-
-		function loop(res) {
-
-			Promise.resolve().then(() => condition(res))
-				.then((cond) => {
-					cond
-						? action(res).then((res) => loop(res))
-						: resolve(res);
-				});
-		}
-
-		return loop();
-	});
-}
-
-
 var Static = {};
 
 class DiscordCommands {
 
-	static debug(_author, _channel, args) {
-		if(args.length > 0) {
-			var root = args[0];
-
-			if(root == "match" && args.length >= 2) {
-				var cmd = args[1];
-
-				// fill values of the keys of all matches,
-				// if they're missing
-				if(cmd == "fill" && args.length == 4) {
-					var key = args[2];
-					var value = args[3];
-
-					shen.fetchMatches().then(matches => {
-						matches.forEach(match => {
-							if(match[key] == null) {
-								match[key] = value;
-								shen.db.write(match.dbKey, match.dbModel);
-							}
-						});
-					})
-						.catch(error => {
-							Logger.error(error);
-						});
-				}
-			}
-		}
-	}
-
-	static _promptyn(member, channel, _args, bot) {
-		bot.promptUserYN(member, channel, "This is a test Y/N prompt. Answer the prompt by typing \"yes\" or \"no\".")
-			.then((choice) => {
-				if(choice) {
-					channel.sendMessage("Interpreted answer as \"yes\".");
-				} else {
-					channel.sendMessage("Interpreted answer as \"no\".");
-				}
-			}).catch((reason) => {
-				channel.sendMessage("Could not interpret response.");
-				channel.sendMessage(reason);
-			});
-	}
-
-	static _prompt(sender, _args) {
+	static async _prompt(sender, _args)
+	{
 		sender.log("This is a test prompt.");
-		sender.prompt("Answer the prompt by typing anything here. > ")
-			.then((choice) => {
-				sender.log("Interpreted answer as \"" + choice + "\".");
-			});
+		let response = await sender.prompt("Answer the prompt by typing anything here. > ");
+
+		sender.log("Interpreted answer as \"" + response + "\".");
 	}
 
 	static killme(sender, _args) {
@@ -156,26 +74,6 @@ class DiscordCommands {
 			shen.db.discordLinkUser(userID, username)
 				.then(() => {
 					channel.sendMessage(`Successfully linked user \`${userID}\` to Discord account \`${username}\``);
-				});
-		}
-	}
-
-	static addUser(member, channel, args) {
-		if(!member.permissions.hasPermission("ADMINISTRATOR")) {
-			return; // lock out any user that is not a server admin
-		}
-
-		if(args.length >= 2) {
-			let userID = args[0];
-			let nickname = args.slice(1).join(" "); // join everything after 1st arg
-
-			let user = shen.User(userID, nickname);
-			shen.db.addUser(user)
-				.then(()=> {
-					channel.sendMessage(outdent`
-					Successfully added user with ID \`${userID}\`. :ok_hand:
-					Nickname: \`${nickname}\`
-				`);
 				});
 		}
 	}

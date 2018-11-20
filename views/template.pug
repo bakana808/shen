@@ -1,0 +1,17 @@
+
+// page template
+// expects a mixin named "content"
+
+doctype html
+
+html
+	include head
+
+	body
+		include header
+
+		section#content(data-start="padding-top: 100px;" data-500-start="padding-top: 110px;")
+			div.wrapper
+				+content
+
+		include footer

@@ -1,70 +1,44 @@
 
-var Identifiable = require("./identifiable");
-
-class Ruleset {
-	constructor(name, rules) {
-		this.name = "Untitled Ruleset";
-
-		if(typeof rules === "object") {
-			this.rules = rules;
-		} else {
-			this.rules = {};
-		}
-	}
-}
 /**
  * This class represents a game, and the type of stats
  * and rules that are supported for it.
+ *
+ * @class
  */
-class Game extends Identifiable {
+class Gametitle {
 
-	constructor(options = {}) { super(options);
-		options = Object.assign({
-			title: options.id,
-			compatabilities: ["character", "stage"],
-			characters: {},
-			stages: {},
-		}, options);
-		// defaults
+	/**
+	 * Creates a new Gametitle.
+	 *
+	 * @param {Object} data              Information about the game.
+	 * @param {string} data.title        The game's official title.
+	 * @param {Object} data.restrictions This game's restrictions per round.
+	 * @param {Object} data.meta         An object containing all the metainfo 
+	 *                                   that is supported.
+	 */
+	constructor(data) {
 
-		this._rulesets = {
-			"1v1": new Ruleset("1v1", {})
-		};
-
-		/**
-		 * An array of attributes that this game supports. For example, a game
-		 * that has different characters would have "character" has a compatabilty.
-		 * @type {string[]}
-		 */
-		Object.defineProperty(this, "compatabilities", {value: options.compatabilities});
 		/**
 		 * The title of this game.
+		 *
 		 * @type {string}
 		 */
-		Object.defineProperty(this, "title", {value: options.title});
+		Object.defineProperty(this, "title", {value: data.title});
+
 		/**
-		 * The avaliable pickable characters in this game, if the game has
-		 * different characters.
-		 * @type {object}
+		 * The round restrictions of this game.
+		 *
+		 * @type {Object}
 		 */
-		Object.defineProperty(this, "characters", {value: options.characters});
+		Object.defineProperty(this, "restrictions", {value: data.restrictions});
+
 		/**
-		 * The avaliable pickable stages / maps in this game, if the game has
-		 * different stages.
-		 * @type {object}
+		 * The availiable metainfo of this game.
+		 *
+		 * @type {Object}
 		 */
-		Object.defineProperty(this, "stages", {value: options.stages});
-	}
-
-	//getTitle() { return this.title; }
-
-	getRulesets() {
-		return Object.keys(this._rulesets);
-	}
-
-	getRuleset(ruleset) {
-		return this._rulesets[ruleset];
+		Object.defineProperty(this, "meta", {value: data.meta});
 	}
 }
 
-module.exports = Game;
+module.exports = Gametitle;

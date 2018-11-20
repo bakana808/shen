@@ -1,0 +1,345 @@
+
+@charset "utf-8";
+
+$width: 800px;
+$color_text: #323537;
+$color_accent: rgb(72, 195, 114);
+
+html, body {
+	background: white;
+	margin: 0px; padding: 0px;
+	height: 100%; min-height: 100%;
+	width: 100%; min-width: 100%;
+	font-family: "Open Sans", freesans, sans-serif;
+	font-size: 14px;
+	color: $color_text;
+	line-height: 1.5;
+	letter-spacing: 0.7px;
+}
+
+#sign-in-button {
+	background-color: white;
+	font-size: 14px;
+	color: #01A361;
+	text-transform: none;
+	padding: 5px 10px;
+	border-radius: 5px;
+
+	&.signed-in {
+		background-color: transparent;
+		padding: 3px 8px;
+		box-shadow: 0 0 0 2pt white;
+		color: white;
+	}
+}
+
+.match-list {
+	.match {
+		background-color: #444444;
+		box-shadow: 0 2px 3px 1px #c8c8c8;
+		border-radius: 2px;
+		line-height: 14px;
+		color: #c1c1c1;
+		margin-bottom: 5px;
+
+		.match--title {
+			display: inline-block;
+			vertical-align: middle;
+			width: 50%;
+
+			.player {
+				display: inline-block;
+				font-size: 14px;
+				font-weight: bolder;
+				padding: 8px 8px;
+				margin: 0px 5px;
+				border-radius: 5px;
+
+				&.player--0 {
+					color: #d59b4c;
+					width: 120px;
+				}
+
+				&.player--1 {
+					color: #42a7d1;
+				}
+			}
+		}
+
+		.match--games {
+			display: inline-block;
+			vertical-align: middle;
+			width: 50%;
+			padding-right: 10px;
+			box-sizing: border-box;
+
+			.game {
+				display: inline-block;
+				float: right;
+				height: 16px;
+
+				.winner {
+					display: inline-block;
+					width: 16px;
+					height: 16px;
+					border-radius: 8px;
+					margin: 0px 5px;
+
+					&.winner--0 {
+						background-color: #d59b4c;
+						box-shadow: inset 0px -4px 8px #deab66;
+					}
+
+					&.winner--1 {
+						background-color: #42a7d1;
+						box-shadow: inset 0px -4px 8px #6cc1e3;
+					}
+
+					&.winner--null {
+						background-color: #656565;
+						box-shadow: inset 0px 1px 4px #575757;
+					}
+				}
+			}
+		}
+
+
+
+
+	}
+}
+
+.page-header {
+
+	height: 50px;
+	width: 100%;
+
+	background: rgb(41, 41, 41);
+	position: fixed;
+	z-index: 2;
+
+	.wrapper {
+
+		width: auto;
+		height: 100%;
+		margin: 0 auto;
+		padding: 0px 50px;
+
+		div {
+			display: inline-block;
+
+		}
+
+		.logo {
+			overflow: visible;
+			display: inline-block;
+			box-sizing: border-box;
+			margin-top: -25px;
+			margin-left: -25px;
+			height: 100px;
+			width: 100px;
+		}
+
+		.title {
+			margin-top: 8px;
+			margin-left: 20px;
+			font-size: 20px;
+			letter-spacing: 3px;
+			vertical-align: top;
+			text-transform: uppercase;
+			color: white;
+			font-weight: bold;
+			display: inline-block;
+		}
+
+		.navbar--left {
+			display: inline-block;
+			vertical-align: top;
+
+			a {
+				font-size: 14px;
+			}
+
+			.navbar-item {
+				margin-right: 20px;
+			}
+		}
+
+		.navbar--right {
+			display: inline-block;
+			vertical-align: top;
+			//text-align: right;
+			float: right;
+
+			a {
+				font-size: 24px;
+			}
+
+			.navbar-item {
+				margin-left: 20px;
+			}
+		}
+
+		.navbar {
+			height: 100%;
+			box-sizing: border-box;
+
+			ul {
+				height: 100%;
+				display: inline-block;
+				list-style-type: none;
+				padding: 0px; margin: 0px;
+			}
+
+			.navbar-item {
+				display: inline-block;
+				padding-top: 6px;
+				vertical-align: top;
+
+				a {
+					line-height: 50px;
+					text-transform: uppercase;
+					text-decoration: none;
+					font-weight: bold;
+					color: white;
+				}
+			}
+		}
+	}
+}
+
+#top {
+	position: fixed;
+	width: 100%;
+	overflow: hidden;
+	z-index: 1;
+}
+
+.jumbotron {
+
+	p {
+		margin: 0px;
+	}
+
+	.background {
+		position: absolute;
+		background-size: cover;
+		width: 100%;
+		height: inherit;
+	}
+
+	&.jt--home {
+
+		height: 500px;
+
+		.background {
+			background-image: url("/jumbotron.jpg");
+			background-color: $color_accent;
+		}
+
+		.caption {
+			background-image: url("/title.png");
+			margin-bottom: 125px;
+		}
+	}
+
+	&.jt--ssb4 {
+
+		height: 400px;
+
+		.background {
+			background-image: url("/jt_cyan.jpg");
+			background-color: rgb(57, 196, 215);
+		}
+
+		.caption {
+			background-image: url("/img/titles/ssb4-sp2017.png");
+			margin-bottom: 40px;
+			height: 300px;
+		}
+	}
+
+	.caption-container {
+		width: 100%;
+		height: auto;
+
+		position: absolute;
+		bottom: 0;
+		left: 0;
+	}
+	.caption {
+		color: white;
+
+		width: auto;
+		height: 250px;
+		margin: 0px auto; // center
+
+		background-repeat: no-repeat;
+		background-position: center bottom;
+		overflow: visible;
+
+		text-align: left;
+		font-size: 48px;
+		font-weight: bold;
+	}
+
+}
+
+#content {
+
+	padding-top: 50px;
+	min-height: 100%;
+
+	h2 {
+		text-transform: uppercase;
+		font-size: 16px;
+		font-weight: 800;
+		color: rgb(16, 52, 38);
+	}
+
+	p, ul {
+		color: #323537;
+		margin-bottom: 20px;
+	}
+
+	.wrapper {
+
+		width: $width;
+		margin: 0 auto;
+
+	}
+
+	.stream-window {
+
+		text-align: center;
+
+	}
+
+}
+
+#contact {
+
+	box-sizing: border-box;
+	display: block;
+
+	footer {
+		background-image: url("/footer.jpg");
+		background-repeat: no-repeat;
+
+		color: #bfbfbf;
+
+		padding-top: 50px;
+		padding-bottom: 100px;
+		position: relative;
+		display: block;
+		box-sizing: border-box;
+		vertical-align: baseline;
+
+		.row {
+			width: 800px;
+			margin: 0 auto;
+		}
+
+	}
+
+}

@@ -1,0 +1,14 @@
+
+head
+	title Shen Ranking Server
+
+	style
+		:scss
+			@import "views/style.scss"
+
+	script(type="text/javascript" src="https://rawgit.com/Prinzhorn/skrollr/master/dist/skrollr.min.js")
+	script.
+		window.addEventListener("load", function() {
+			skrollr.init({ forceHeight: false });
+		});
+

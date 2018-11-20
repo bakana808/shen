@@ -49,7 +49,7 @@ module.exports.ladder_rank = async (sender, args) => {
 	var rankings = await Rankings.calculate({
 		tournament: null,
 		// initialize stats
-		init_fn: (user) => {
+		onStart: (user) => {
 			sender.info("initialized stats for " + user.tagc);
 			return {
 				match_count: 0,
@@ -59,16 +59,21 @@ module.exports.ladder_rank = async (sender, args) => {
 			};
 		},
 		// process match
-		match_fn: matchFunction,
-		end_fn: (_user, stats) => { return stats; },
+		onMatch: matchFunction,
+		onFinish: (_user, stats) => { return stats; },
 		sort_fn: (a, b) => {
 
 			let wr = (stats) => stats.match_count
 				? ((stats.wins / stats.match_count) * 100).toFixed(2)
 				: 0;
+			
+			let arating = a.rating, brating = b.rating;
 
-			if(a.rating != b.rating) {
-				return b.rating - a.rating; // sort by rating
+			if(a.match_count < 3) arating = 0;
+			if(b.match_count < 3) brating = 0;
+
+			if(arating != brating) {
+				return brating - arating; // sort by rating
 			} else {
 				return wr(b) - wr(a); // secondary: sort by winrate
 			}
@@ -77,24 +82,30 @@ module.exports.ladder_rank = async (sender, args) => {
 
 	sender.info("finished calculating rankings!");
 
-	let data = [["user", "rating", "wins", "losses", "wr"]];
+	let data = [["", "user", "SR", "W", "L", "W%"]];
 
+	let place = 1;
 	for (let tuple of rankings) {
 		let user = tuple[0], stats = tuple[1];
 
+		// hide rating of players less than three matches
+		let rating = stats.match_count < 3 ? "----" : stats.rating;
+
 		data.push([
-			user.tagc,
-			stats.rating,
+			place,
+			user.name,
+			rating,
 			stats.wins,
 			stats.losses,
 			((stats.wins / stats.match_count) * 100).toFixed(2) + "%"
 		]);
+		place++;
 	}
 
 	let output = table(data, {
 		border: getBorderCharacters("ramac"),
-		drawHorizontalLine: (index, size) => index === 1
+		drawHorizontalLine: (index, _size) => index === 1
 	});
 
-	sender.info(output);
+	sender.log(output);
 };

@@ -8,36 +8,44 @@ var TournamentStandingsHistory = require("./tournament/history");
  * Tournaments include Players, and a list of Matches.
  *
  * Ladder tournaments also fit under this class.
+ *
+ * @class
  */
-class Tournament extends Event {
-	constructor(obj) { super(obj); this.__verifyObject(obj);
+class Tournament {
+
+	/**
+	 * Creates a tournament.
+	 * It is not recommended to directly call this constructor, but to instead
+	 * call <pre><code>shen().db.getTournament()</code></pre>.
+	 *
+	 * @param {Object} data Information about the tournament.
+	 * @param {
+	 */
+	constructor(data) {
+
 		/**
 		 * The formatted name of this tournament.
 		 * @type {string}
 		 */
-		Object.defineProperty(this, "title", {value: obj.title});
+		Object.defineProperty(this, "title", {value: data.title});
+
 		/**
 		 * The users that are in this tournament.
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "users", {value: obj.users});
+		Object.defineProperty(this, "users", {value: data.users});
+
 		/**
 		 * The game that this tournament is for.
 		 * @type {Gametype}
 		 */
-		Object.defineProperty(this, "game", {value: obj.game});
+		Object.defineProperty(this, "game", {value: data.game});
+
 		/**
 		 * The matches that were played in this tournament.
 		 * @type {Match[]}
 		 */
-		Object.defineProperty(this, "matches", {value: obj.matches});
-		Object.defineProperty(this, "ranker", {value: obj.ranker});
-		/**
-		 * The instances of tournament standings in this tournament, one for
-		 * every match that took place.
-		 * @type {TournamentStandings[]}
-		 */
-		Object.defineProperty(this, "standings", {value: TournamentStandingsHistory.from(this)});
+		Object.defineProperty(this, "matches", {value: data.matches});
 	}
 
 	// fetchStats() {
@@ -91,28 +99,28 @@ class Tournament extends Event {
 	// 	shen.db.forEachTournyMatch(this._id, toMatchId, callback);
 	// }
 
-	__verifyObject(obj = {}) {
-		obj = Options.merge({
-			title:   obj.id,
+	__verifyObject(data = {}) {
+		data = Options.merge({
+			title:   data.id,
 			users:   null,
 			game:    null,
 			matches: null,
 			ranker:  null
-		}, obj);
+		}, data);
 
-		if(obj.title == null) {
+		if(data.title == null) {
 			throw new ReferenceError("Tournament title cannot be null.");
 		}
 
-		if(obj.users == null || !(obj.users instanceof Array)) {
+		if(data.users == null || !(data.users instanceof Array)) {
 			throw new ReferenceError("Users for tournament is not an array.");
 		}
 
-		if(obj.game == null) {
+		if(data.game == null) {
 			throw new ReferenceError("Game used for tournament cannot be null.");
 		}
 
-		if(obj.matches == null || !(obj.matches instanceof Array)) {
+		if(data.matches == null || !(data.matches instanceof Array)) {
 			throw new ReferenceError("Matches for tournament is not an array.");
 		}
 	}

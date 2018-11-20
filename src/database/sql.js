@@ -5,18 +5,19 @@ const { performance } = require("perf_hooks");
 /* PostgreSQL API */
 const { Client } = require("pg");
 
-const { parse, unparse } = require("uuid-parse");
-const chalk = require("chalk");
+const { parse, unparse } = require("uuid-parse"); // for parsing whatever PG returns
+const chalk              = require("chalk");
+const slugify            = require("slugify");
 
 const logger = new (require("../util/logger"))("sql");
 
 //const uuidv4 = require("uuid/v4");
 //const UUID_LENGTH = 36; // 32 hex + 4 dashes
 
-const User = require("../user");
-const Round = require("../round");
-const Match = require("../match");
-const MatchBuilder = require("../matchbuilder");
+const User =       require("../user");
+const Round =      require("../round");
+const Match =      require("../match");
+const Tournament = require("../tournament");
 
 const { getRoundWins, getMatchPoint } = require("../util/matchutils");
 
@@ -438,25 +439,22 @@ class SQLDatabase {
 	 * Retrieves a user by their linked Discord ID.
 	 * If a user with this Discord ID doesn't exist, an error will be thrown.
 	 *
-	 * @async
 	 * @param {string} discord_id the user's Discord ID.
 	 *
-	 * @returns {Promise<User>} the user that was retrived
+	 * @returns {?User} the user that was retrived
 	 */
-	get_user_discord(discord_id) {
+	async get_user_discord(discord_id) {
 		const statement = `
 			SELECT * FROM users WHERE discord_id=$1;
 		`;
 
-		return this.pquery(statement, [discord_id])
-			.then((res) => {
-				if(res.rows.length == 0) {
-					throw new Error("this user does not exist (discordID = " + discord_id + ")");
-				}
-				var obj = res.rows[0];
+		let res = await this.pquery(statement, [discord_id]);
 
-				return new User({ id: obj.uuid, username: obj.name, tag: obj.tag});
-			});
+		if(res.rows.length == 0) {
+			return null;
+		}
+
+		return this._constructUser(res.rows[0]);
 	}
 
 	/**
@@ -475,7 +473,7 @@ class SQLDatabase {
 	//==========================================================================
 	// MATCH / ROUND QUERIES
 	//==========================================================================
-	
+
 	/**
 	 * Inserts an empty match with base information.
 	 * Returns the ID of the match that was inserted.
@@ -542,7 +540,7 @@ class SQLDatabase {
 		const q = `
 			UPDATE matches
 			SET winners     = $1,
-			    rounds      = $2,
+				rounds      = $2,
 				in_progress = $3
 			WHERE id = $4
 		`;
@@ -573,9 +571,9 @@ class SQLDatabase {
 
 		if(res.rows.length == 0)
 			throw new Error(`round (id=${ id }) does not exist`);
-		
+
 		let row = res.rows[0];
-		
+
 		let users =   await this.getUsers(row.users);
 		let winners = await this.getUsers(row.winners);
 
@@ -623,7 +621,7 @@ class SQLDatabase {
 
 		if(row.in_progress)
 			throw new Error(`cannot construct an empty match (id=${row.id})`);
-		
+
 		let users =   await this.getUsers(row.users);
 		let winners;
 
@@ -651,7 +649,7 @@ class SQLDatabase {
 			rounds:     rounds
 		});
 	}
-	
+
 	/**
 	 * Gets a match from the database by the match ID.
 	 *
@@ -730,6 +728,64 @@ class SQLDatabase {
 			chalk.yellow(`(${ match.getRoundWins(match.users[0]) } - ${ match.getRoundWins(match.users[1]) }) `) +
 			`${ match.users[1].tagc }`
 		);
+	}
+
+	//==========================================================================
+	// TOURNAMENT QUERIES
+	//==========================================================================
+
+	/**
+	 * Creates the tournament table if one doesn't already exist.
+	 *
+	 * @private
+	 */
+	async _initTournamentTable() {
+		// id: The ID of the tournament. Used as the PK and for other tables to use for referencing.
+		// slug: The slug of the tournament. Used for web-friendly links and also as shorthand
+		//       for a possibly very long title.
+		// title: The fancy title of the tournament.
+		// gametype: The ID of the gametype to use. This will decide most
+		//           default match rules as well as what metainfo will be required.
+		// open_time: The time that this tournament will open. (can be null)
+		// close_time: The time that this tournament will close. (can be null)
+		// users: The users that are entered into this tournament.
+		await this.query(`
+			CREATE TABLE IF NOT EXISTS tournaments (
+				id         serial PRIMARY KEY,
+				slug       VARCHAR(32) UNIQUE,
+				title      VARCHAR(64),
+				gametype   integer,
+				open_time  bigint,
+				close_time bigint,
+				users      UUID[]
+			)
+		`);
+	}
+
+	/**
+	 * Adds a new tournament into the database.
+	 *
+	 * @param {Object}   data            Information about the tournament.
+	 * @param {string}   data.title      The formatted title of the tournament.
+	 * @param {string}   data.slug       The slug of the tournament to use for
+	 *                                   web-friendly links or as shorthand for
+	 *                                   the tournament in commands.
+	 * @param {Gametype} data.gametype   The game that is being played.
+	 * @param {number}   data.open_time  The time of which this tournament opens.
+	 * @param {number}   data.close_time The time of which this tournament closes.
+	 *
+	 * @returns {Tournament} The tournament that was created.
+	 */
+	async addTournament(data) {
+		if(!data.slug) data.slug = slugify(data.title);
+
+		const q = `
+			INSERT INTO tournaments(slug, title, game, open_time, close_time)
+			VALUES ($1, $2, $3, $4);
+		`;
+
+		let res = await this.pquery(q, [data.slug, data.title, data.open_time, data.close_time]);
+
 	}
 
 }
