@@ -262,6 +262,9 @@ init({
 	})
 }).then(() =>
 {
+	// add builtin gametitles
+	shen().addGametitle("ssb4", require("./gametype/smash4"));
+
 	// readline interface
 	var rl = readline.createInterface({
 		input: process.stdin,

@@ -1,7 +1,7 @@
 
 var Options = require("./util/options");
-var Event = require("./event");
-var TournamentStandingsHistory = require("./tournament/history");
+
+var Gametitle = require("./gametype");
 
 /**
  * This class represents a tournaments for a game.
@@ -37,7 +37,7 @@ class Tournament {
 
 		/**
 		 * The game that this tournament is for.
-		 * @type {Gametype}
+		 * @type {Gametitle}
 		 */
 		Object.defineProperty(this, "game", {value: data.game});
 

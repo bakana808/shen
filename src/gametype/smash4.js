@@ -78,8 +78,8 @@ const chars = {
 };
 
 const restrictions = {
-	'teams': [2],
-	'teamsize': [1, 2]
+	"teams": [2],
+	"teamsize": [1, 2]
 };
 
 module.exports = new Gametitle({
@@ -87,11 +87,13 @@ module.exports = new Gametitle({
 	"restrictions": restrictions,
 	"meta": {
 		"characters": {
-			per_player: true,
+			// specific to each round and player
+			scopes: ["round", "player"],
 			values: chars
-		}
+		},
 		"stages": {
-			per_player: false,
+			// specific to each round
+			scopes: ["round"],
 			values: stages
 		}
 	}

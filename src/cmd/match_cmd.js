@@ -10,7 +10,7 @@ module.exports.add_match = async (sender, _args) => {
 
 	var users = [];
 
-	let mpre = "match > ".green;
+	let mpre = chalk.green("match > ");
 
 	// MATCH - TOURNAMENT
 	// ------------------
@@ -71,13 +71,14 @@ module.exports.add_match = async (sender, _args) => {
 		let rpre = mpre + `round ${i+1} > `.yellow;
 		var meta = {};
 
-		/*
-
-		// STAGE USED
+		// ROUND META
 		// ----------
+
 		meta.stage = await sender.prompt(rpre + "stage used (n/a): ");
 
-		// PLAYER-SPECIFIC META
+		// PLAYER-ROUND META
+		// -----------------
+
 		meta.users = [];
 		for(let j = 0; j < users.length; j++) {
 
