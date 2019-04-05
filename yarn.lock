@@ -378,6 +378,11 @@ cliui@^3.2.0:
     strip-ansi "^3.0.1"
     wrap-ansi "^2.0.0"
 
+clj-fuzzy@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/clj-fuzzy/-/clj-fuzzy-0.4.1.tgz#76571277c2433cd4d380f756c89b5e0fdb68f281"
+  integrity sha512-5CapOxRK3au0Dcbu8xYx6sLO2m86iOkY+IKnPZFo7SAofhPWDaOF4BdV3Ad7gouYiR14OhmWYQs39QxYrmkZVw==
+
 code-point-at@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
