@@ -89,8 +89,6 @@ module.exports.add_match = async (sender, _args) => {
 			meta.users[j].character = await sender.prompt(rpre + `character used by ${ users[j].tagc } (n/a): `);
 		}
 
-		*/
-
 		// WINNER OF ROUND
 		// ---------------
 
