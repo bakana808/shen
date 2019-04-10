@@ -295,12 +295,13 @@ class SQLDatabase {
 	 * @returns {Promise<User[]>} The users that match this partial name.
 	 */
 	async findUsers(partial) {
+
 		const statement = `
 			SELECT * FROM users
-			WHERE name LIKE $1 || '%'
+			WHERE LOWER(name) LIKE '%' || $1 || '%'
 		`;
 
-		var res = await this.pquery(statement, [partial]);
+		var res = await this.pquery(statement, [ partial.toLowerCase() ]);
 
 		return res.rows.map(row => new User({
 			uuid: row.uuid,

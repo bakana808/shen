@@ -157,10 +157,12 @@ app.set("json spaces", 4);
 
 // add sessions and passport to express
 
-app.use(cookieParser());
+const COOKIE_SECRET = "persist123"; // TODO move this to environment variable
+
+app.use(cookieParser(COOKIE_SECRET));
 app.use(session({
 	store: new (require("connect-pg-simple")(session))(),
-	secret: "persist123", // TODO move this to environment variable
+	secret: COOKIE_SECRET,
 	resave: false,
 	cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
 }));
@@ -176,17 +178,51 @@ app.use("/", require("./router/webapp"));
 
 // Passport Authentication Routes ----------------------------------------------
 
+const FRONT_HOST = "http://localhost:3000";
+
+const FRONT_HOME = FRONT_HOST + "/";
+const FRONT_PROF = FRONT_HOST + "/profile";
+
 app.get("/auth/discord", passport.authenticate("discord", { scope: "identify" }));
 
-app.get("/auth/discord/cb",
-	passport.authenticate("discord", { failureRedirect: "/", successRedirect: "/profile" })
-);
+app.get("/auth/discord/cb", (req, res) => {
+
+	passport.authenticate("discord", (err, user, info) => {
+
+		if(info) { console.log("login info: " + JSON.stringify(info)); }
+		
+		if(err) {
+
+			return res.redirect( FRONT_HOME );
+		
+		} else {
+
+			console.log("user logged in! " + user.tag);
+
+			req.session.user = {
+				uuid: user.uuid,
+				name: user.name,
+				tag: user.tag
+			};
+
+			res.cookie("loggedIn", "true");
+			res.cookie("user", {
+				name: user.name,
+				tag: user.tag
+			});
+			return res.redirect( FRONT_PROF );
+		}
+
+	})(req, res);
+});
 
 app.get("/auth/google", passport.authenticate("google", { hd: "hawaii.edu", scope: ["profile", "email"] }));
 
 app.get("/auth/google/cb",
-	passport.authenticate("google", { successRedirect: "/profile", failureRedirect: "/auth/google" })
+	passport.authenticate("google", { successRedirect: FRONT_PROF, failureRedirect: FRONT_HOME })
 );
+
+app.use(require("router/api/v1")); // v1 API routes
 
 //==============================================================================
 // Configure Command Listener
