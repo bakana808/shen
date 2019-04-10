@@ -4,7 +4,7 @@ const logger = new (require("./util/logger"))();
 /**
  * Contains all the basic API functions of this application.
  */
-class Shen {
+class ShenAPI {
 
 	/**
 	 * Constructs the central API object.
@@ -16,6 +16,7 @@ class Shen {
 	 * @param {DiscordClient}   data.bot    The discord bot.
 	 */
 	constructor(data) {
+
 		this.db = data.db;
 
 		this.cl = data.cl;
@@ -34,10 +35,10 @@ class Shen {
 
 		this.tournaments = new Map();
 
-		if(Shen.instance) {
+		if(ShenAPI.singleton) {
 			logger.warn("tried to create a new API instance; one already exists");
 		} else {
-			Shen.instance = this;
+			ShenAPI.singleton = this;
 		}
 	}
 
@@ -130,12 +131,41 @@ class Shen {
 	static findOrCreateUser(userID) {
 		return shen.db.fetchUser
 	}
-	static fetchUser(userid) {
-		return shen.db.fetchUser(userid).then(users => {
-			if(users.length == 0) // user doesn't exist
-				throw new ReferenceError("This user does not exist.");
-			return users[0];
-		});
+	
+	/**
+	 * Returns a User by their tag.
+	 *
+	 * @param {string} tag The User's tag
+	 *
+	 * @returns User
+	 */
+	async getUser(tag) {
+
+		return this.db.getUserByTag(tag);
+	}
+
+	/**
+	 * Returns a User by their UUID.
+	 *
+	 * @param {string} uuid The User's UUID
+	 *
+	 * @returns User
+	 */
+	async getUserByID(uuid) {
+
+		return this.db.get_user(uuid);
+	}
+
+	/**
+	 * Searches for users partially matching the name provided.
+	 *
+	 * @param {string} partial A partial search term for a User's name
+	 *
+	 * @returns {Promise<User[]>}
+	 */
+	async searchUsers(partial) {
+
+		return this.db.findUsers(partial);
 	}
 
 	static fetchUserFromDiscordID(discordID) {
@@ -216,26 +246,37 @@ class Shen {
 	}
 }
 
-module.exports = Shen;
-
-/**
- * Returns the current instance of the API.
- *
- * @return {Shen} The API.
- */
-module.exports.shen = () => { return Shen.instance; };
-
 /**
  * Waits until every component is ready to use, then resolves.
  *
  * @returns {void}
  */
-module.exports.init = async (data) =>
-{
-	let shen = new Shen(data);
+async function init(data) {
+
+	let shen = new ShenAPI(data);
 
 	await shen.bot.connect();
 
-	return shen;
-};
+	ShenAPI.singleton = shen;
+}
+/**
+ * Returns the current instance of the API.
+ *
+ * @return {ShenAPI} The API.
+ */
+function shen() {
+
+	if(ShenAPI.singleton) {
+
+		return ShenAPI.singleton;
+	}
+	else {
+
+		throw new ReferenceError("Cannot get API. Initialize it first.");
+	}
+}
+
+module.exports      = ShenAPI;
+module.exports.init = init;
+module.exports.shen = shen;
 
