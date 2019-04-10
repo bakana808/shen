@@ -1,15 +1,17 @@
 Shen Ranking System
 ===
 
-The Shen Ranking System is a web application and API that manages tournaments for various competitive games and ranks players based on matches in that tournament, as well as provide statistics to players. While this project currently also has a Discord bot coded in, it should be moved to a separate repo when this project is in a finalized state.
+The Shen Ranking System is a Javascript and REST API that manages tournaments for various competitive games and ranks players based on matches in that tournament, as well as provide statistics to players. While this project currently also has a Discord bot coded in, it should be moved to a separate repo when this project is in a finalized state.
+
+For our webapp that uses the Shen API, check out our other project [shen-frontend](https://github.com/branden-akana/shen-frontend).
 
 Features
 ---
 
- - Client-side Webapp
- - Server-side API
- - RESTful API
- - Discord bot (provides Discord users direct access to server API, but should be moved to a separate project in the future and use the REST API)
+ - Javscript API
+ - REST API
+ - Discord bot
+ - Command-Line Interface
 
 For an in-depth explanation on how the ranking algorithms and statistics itself should work, read over the [Shen Rankings Specifications][1]. All algorithm-related contributions should follow these specifications. When adding new systems that will affect the rankings, it might first be specified in this document.
 
@@ -43,15 +45,20 @@ An effecient and accurate method of reporting matches is a current topic of disc
 Installing
 ---
 
+[Yarn](https://yarnpkg.com/en/docs/install) is recommended for installing dependencies as that's how they're managed for this project.
+
 ```sh
 npm install https://github.com/branden-akana/shen
-npm install
+yarn install
 ```
 
 Running
 ---
 
-To run, execute `npm start`.
+```sh
+npm start
+```
+
 Before running, be sure to have a valid `.env` file.
 
 Environment File `.env`
@@ -59,16 +66,12 @@ Environment File `.env`
 
 These variables should be placed in a file named `.env` and located at the root of the project (the same place where `package.json` is).
 
-### Firebase Variables
-`FIREBASE_DATABASE_URL` - The link to your Firebase database
+### Database Variables
 
-`FIREBASE_PROJECT_ID` - The ID of your Firebase project
-
-`FIREBASE_CLIENT_EMAIL` - The email of your Firebase service account
-
-`FIREBASE_PRIVATE_KEY` - The private key of your Firebase service account
+`DATABASE_URL` - A PostgreSQL database URL containing username and password
 
 ### Discord Variables
+
 `DISCORD_CLIENT_ID` - Your Discord bot client ID
 
 `DISCORD_CLIENT_SECRET` - Your Discord bot client secret
