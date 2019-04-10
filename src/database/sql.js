@@ -33,6 +33,10 @@ class SQLDatabase {
 	 */
 	constructor(uri = process.env.DATABASE_URL) {
 
+		if(!uri) {
+
+			logger.warn("ev 'DATABASE_URL' is missing! any database calls will throw an error.");
+		}
 		/**
 		 * The database URI to use.
 		 *

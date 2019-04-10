@@ -56,17 +56,24 @@ class DiscordBot {
 		this.client.on("warn", (info) => { logger.warn(info); });
 		this.client.on("error", (error) => { logger.error(error); });
 
-		let guild = this.client.guilds.get(this.serverID);
-		let channels = guild.channels;
+		if(this.serverID) {
 
-		let chRegistration = channels.find(channel => channel.name === "registration");
-		if(!chRegistration) {
-			logger.warn("could not find channel with name \"registration\"");
+			let guild = this.client.guilds.get(this.serverID);
+			let channels = guild.channels;
+
+			let chRegistration = channels.find(channel => channel.name === "registration");
+			if(!chRegistration) {
+				logger.warn("could not find channel with name \"registration\"");
+			}
+
+			let chEvents = channels.find(channel => channel.name === "events");
+			if(!chEvents) {
+				logger.warn("could not find channel with name \"events\"");
+			}
 		}
+		else {
 
-		let chEvents = channels.find(channel => channel.name === "events");
-		if(!chEvents) {
-			logger.warn("could not find channel with name \"events\"");
+			logger.warn("ev 'DISCORD_SERVER_ID' is missing. channel listeners will not be made.");
 		}
 
 		//let msgRegistration = await chRegistration.send("Rate this post to register for Shen RS");

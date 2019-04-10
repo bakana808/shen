@@ -12,7 +12,7 @@ const util =  require("util");  // used to print objects
 const chalk = require("chalk"); // for printing colors
 
 const readline      = require("readline"); // used for CLI
-const logger        = require("./util/logger");
+const logger        = new (require("./util/logger"))("core");
 
 // passport.js + extras
 
@@ -36,6 +36,8 @@ const CommandListener = require("./cmd/listener");
 //==============================================================================
 // Configure Environment Variables
 //==============================================================================
+
+logger.info("starting server!");
 
 // run dotenv to load variables from .env
 require("dotenv").config();
@@ -77,6 +79,8 @@ shen.fetchActiveTournament()
 //==============================================================================
 // Configure Passport.js
 //==============================================================================
+
+logger.info("initializing passport.js...");
 
 // User Serialization ----------------------------------------------------------
 
@@ -122,31 +126,42 @@ passport.use(new DiscordStrategy(
 	})
 );
 
-passport.use(new GoogleStrategy(
-	{
-		clientID:     process.env.GOOGLE_CLIENT_ID,
-		clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-		callbackURL: "/auth/google/cb",
-		proxy: true,
-		passReqToCallback: true
-	},
-	(req, _accessToken, _refreshToken, profile, cb) => {
-		
-		if(req.user) { // link profiles
+// Google authentication strategy
 
-			if(profile._json.domain == "hawaii.edu") {
-				logger.info("flagging user " + chalk.green(req.user.toString()) + " as verified (hawaii.edu)");
-				shen.db.verifyUser(req.user.id)
-					.then(() => cb(null, req.user));
-			}
-		
-		} else { cb(null, false); }
-	}
-));
+if(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+
+	passport.use(new GoogleStrategy(
+		{
+			clientID:     process.env.GOOGLE_CLIENT_ID,
+			clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+			callbackURL: "/auth/google/cb",
+			proxy: true,
+			passReqToCallback: true
+		},
+		(req, _accessToken, _refreshToken, profile, cb) => {
+			
+			if(req.user) { // link profiles
+
+				if(profile._json.domain == "hawaii.edu") {
+					logger.info("flagging user " + chalk.green(req.user.toString()) + " as verified (hawaii.edu)");
+					shen.db.verifyUser(req.user.id)
+						.then(() => cb(null, req.user));
+				}
+			
+			} else { cb(null, false); }
+		}
+	));
+}
+else {
+
+	logger.warn("ev 'GOOGLE_CLIENT_ID' and 'GOOGLE_CLIENT_SECRET' not found! google auth will not be used.");
+}
 
 //==============================================================================
 // Configure Express.js
 //==============================================================================
+
+logger.info("initializing express.js...");
 
 const app =  express();
 const port = config.port;
@@ -178,12 +193,18 @@ app.use("/", require("./router/webapp"));
 
 // Passport Authentication Routes ----------------------------------------------
 
+logger.info("initializing authentication routes...");
+
 const FRONT_HOST = "http://localhost:3000";
 
 const FRONT_HOME = FRONT_HOST + "/";
 const FRONT_PROF = FRONT_HOST + "/profile";
 
-app.get("/auth/discord", passport.authenticate("discord", { scope: "identify" }));
+app.get("/auth/discord", (req, res) => {
+	
+	passport.authenticate("discord", { scope: "identify" });
+
+});
 
 app.get("/auth/discord/cb", (req, res) => {
 
@@ -199,17 +220,15 @@ app.get("/auth/discord/cb", (req, res) => {
 
 			console.log("user logged in! " + user.tag);
 
-			req.session.user = {
-				uuid: user.uuid,
-				name: user.name,
-				tag: user.tag
-			};
+			req.session.user = user;
 
 			res.cookie("loggedIn", "true");
 			res.cookie("user", {
+				uuid: user.uuid,
 				name: user.name,
-				tag: user.tag
+				discriminator: user.discriminator
 			});
+
 			return res.redirect( FRONT_PROF );
 		}
 
@@ -222,11 +241,13 @@ app.get("/auth/google/cb",
 	passport.authenticate("google", { successRedirect: FRONT_PROF, failureRedirect: FRONT_HOME })
 );
 
-app.use(require("router/api/v1")); // v1 API routes
+app.use(require("./router/api/v1")); // v1 API routes
 
 //==============================================================================
 // Configure Command Listener
 //==============================================================================
+
+logger.info("initializing command listener...");
 
 // command listener
 var cl = new CommandListener();
@@ -281,8 +302,19 @@ cl.register("list-users", async (sender, args) => {
 
 }, true);
 
+// =============================================================================
+// Discord Bot
+// =============================================================================
+
+logger.info("initializing discord bot...");
+
+var bot = new DiscordBot({
+	token: config.discord.botToken,
+	server: process.env.DISCORD_SERVER_ID
+});
+
+// start listening now
 var server = app.listen(port);
-logger.info(`listening on ${ server.address().address }:${ server.address().port }...`);
 
 // =============================================================================
 // Configuration is done; Startup everything and begin CLI
@@ -300,6 +332,8 @@ init({
 {
 	// add builtin gametitles
 	shen().addGametitle("ssb4", require("./gametype/smash4"));
+
+	logger.info("initializing command interface...");
 
 	// readline interface
 	var rl = readline.createInterface({
@@ -329,7 +363,6 @@ init({
 		append: (msg) => process.stdout.write(msg)
 	};
 
-	rl.prompt();
 	rl.on("line", (line) => {
 
 		//readline.moveCursor(process.stdout, 0, -1); // prevent input from being printed
@@ -343,4 +376,9 @@ init({
 	rl.on("close", () => {
 		db.close();
 	});
+
+	logger.info("startup complete!");
+	logger.info(`server is listening on ${ server.address().address }:${ server.address().port }...`);
+
+	rl.prompt();
 });
