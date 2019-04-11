@@ -116,7 +116,12 @@ class CommandListener {
 	 * @returns Promise[boolean] whether a command was found or not
 	 */
 	async process(sender, message, use_prefix = true) {
-		var args = message.split(" ");
+
+		// argument parsing that accepts quotes
+		var args = message.match(/("[^"]+"|[^"\s]+)/g);
+
+		// remove quotes from arguments
+		args = args.map(arg => arg.replace(/^"([^"]+)"$/,"$1"));
 
 		if(args.length > 0) {
 
