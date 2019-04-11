@@ -59,7 +59,7 @@ class Logger {
 	static warn(msg, groupname = null)  { Logger.log(msg, 1, groupname); }
 	static error(msg, groupname = null) { Logger.log(msg, 2, groupname); }
 
-	constructor(groupname = "") {
+	constructor(groupname = null) {
 		this.groupname = groupname;
 	}
 
