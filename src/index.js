@@ -200,13 +200,18 @@ const FRONT_HOST = "http://localhost:3000";
 const FRONT_HOME = FRONT_HOST + "/";
 const FRONT_PROF = FRONT_HOST + "/profile";
 
-app.get("/auth/discord", (req, res) => {
+app.get("/auth/discord",
+
+	(req, res, next) => {
 	
-	passport.authenticate("discord", { scope: "identify" });
+		logger.info("someone is authenticating using discord!");
+		next();
+	},
 
-});
+	passport.authenticate("discord", { scope: "identify" })
+);
 
-app.get("/auth/discord/cb", (req, res) => {
+app.get("/auth/discord/cb", (req, res, next) => {
 
 	passport.authenticate("discord", (err, user, info) => {
 
@@ -214,22 +219,17 @@ app.get("/auth/discord/cb", (req, res) => {
 		
 		if(err) {
 
-			return res.redirect( FRONT_HOME );
+			next(err);
 		
 		} else {
 
 			console.log("user logged in! " + user.tag);
 
-			req.session.user = user;
+			req.logIn(user, (err) => {
 
-			res.cookie("loggedIn", "true");
-			res.cookie("user", {
-				uuid: user.uuid,
-				name: user.name,
-				discriminator: user.discriminator
+				if(err) { return next(err); }
+				return res.redirect( FRONT_PROF );
 			});
-
-			return res.redirect( FRONT_PROF );
 		}
 
 	})(req, res);
@@ -254,6 +254,7 @@ var cl = new CommandListener();
 
 // registering all commands
 cl.registerObject(DiscordCommands, "discord commands");
+cl.registerObject(require("./cmd/discordManager"));
 cl.registerObject(require("./cmd/match_cmd"));
 cl.registerObject(require("./cmd/rank_cmd"));
 
