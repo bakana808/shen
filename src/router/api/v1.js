@@ -3,14 +3,26 @@ const express  = require("express");
 const router   = express.Router();
 const { shen } = require("../../shen");
 
-router.post("/api/v1/session", (req, res) => {
+router.get("/api/v1/session", (req, res) => {
 
-	if(req.session) {
+	if(req.user) {
 
 		res.status(200).json({
 
 			success: true,
-			loggedIn: true
+			loggedIn: true,
+			user: {
+				uuid: req.user.uuid,
+				name: req.user.name,
+				discriminator: req.user.discriminator
+			}
+		});
+	}
+	else {
+
+		res.status(400).json({
+
+			success: false
 		});
 	}
 });
@@ -22,13 +34,11 @@ router.post("/api/v1/logout", (req, res) => {
 		console.log("the user " + req.session.user.tag + " is ending their session");
 		
 		req.session.user = null;
-		req.logout();
-		res.status(201).end();
 	}
-	else {
 
-		res.status(401).end();
-	}
+	req.logout();
+	req.session.destroy();
+	res.send(401);
 });
 
 router.get("/api/v1/user", async (req, res) => {
