@@ -134,5 +134,69 @@ router.get("/api/v1/ladder/:id", (req, res) => {
 	}
 });
 
+router.get("/api/v1/game/:slug", async (req, res) => {
+
+	var game = await shen().getGametitle(req.params.slug);
+
+	if(game) {
+
+		res.status(200).send({
+
+			success: true,
+			game: game
+		});
+	}
+	else {
+		
+		res.status(401).send({
+
+			success: false,
+			error: "no game exists with this ID"
+		});
+	}
+});
+
+router.get("/api/v1/match/:id", async (req, res) => {
+
+	try {
+
+		var match = await shen().getMatch(req.params.id);
+		res.status(200).json({
+			success: true,
+			match: match
+		});
+	}
+	catch (e) {
+
+		res.status(401).json({
+			success: false,
+			error: e.message
+		});
+	}
+});
+
+router.get("/api/v1/round/:id", async (req, res) => {
+
+	var round = await shen().getRound(req.params.id);
+
+	console.log("round: " + round);
+
+	if(round) {
+
+		res.status(200).json({
+			success: true,
+			round: round
+		});
+	}
+	else {
+
+		res.status(401).json({
+			success: false,
+			error: `round ${ req.params.id } does not exist`
+		});
+	}
+});
+
+
 module.exports = router;
 
