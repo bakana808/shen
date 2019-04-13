@@ -195,16 +195,11 @@ app.use("/", require("./router/webapp"));
 
 logger.info("initializing authentication routes...");
 
-const FRONT_HOST = "http://localhost:3000";
-
-const FRONT_HOME = FRONT_HOST + "/";
-const FRONT_PROF = FRONT_HOST + "/profile";
-
 app.get("/auth/discord",
 
 	(req, res, next) => {
-	
-		logger.info("someone is authenticating using discord!");
+		
+		logger.info("user is authenticating (callback = " + req.cookies["discord_cb_success"] + ")");
 		next();
 	},
 
@@ -213,33 +208,53 @@ app.get("/auth/discord",
 
 app.get("/auth/discord/cb", (req, res, next) => {
 
+	// get callback urls from cookies
+	var successURL = req.cookies["discord_cb_success"];
+	var failureURL = req.cookies["discord_cb_failure"];
+
+	res.clearCookie("discord_cb_success");
+	res.clearCookie("discord_cb_failure");
+
 	passport.authenticate("discord", (err, user, info) => {
 
 		if(info) { console.log("login info: " + JSON.stringify(info)); }
 		
 		if(err) {
 
-			next(err);
-		
-		} else {
+			return res.redirect(failureURL);
+		}
+		else {
 
 			console.log("user logged in! " + user.tag);
-
 			req.logIn(user, (err) => {
 
-				if(err) { return next(err); }
-				return res.redirect( FRONT_PROF );
+				if(err) {
+
+					return res.redirect(failureURL);
+				}
+				return res.redirect(successURL);
 			});
 		}
 
 	})(req, res);
 });
 
-app.get("/auth/google", passport.authenticate("google", { hd: "hawaii.edu", scope: ["profile", "email"] }));
+app.get("/auth/google",
 
-app.get("/auth/google/cb",
-	passport.authenticate("google", { successRedirect: FRONT_PROF, failureRedirect: FRONT_HOME })
+	passport.authenticate("google", { hd: "hawaii.edu", scope: ["profile", "email"] })
 );
+
+app.get("/auth/google/cb", (req, res, next) => {
+
+	// get callback urls from cookies
+	var successURL = req.cookies["google_cb_success"];
+	var failureURL = req.cookies["google_cb_failure"];
+
+	res.clearCookie("google_cb_success");
+	res.clearCookie("google_cb_failure");
+
+	passport.authenticate("google", { successRedirect: successURL, failureRedirect: failureURL });
+});
 
 app.use(require("./router/api/v1")); // v1 API routes
 
