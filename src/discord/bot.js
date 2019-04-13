@@ -36,6 +36,133 @@ class DiscordBot {
 		this.chEvents = "events";
 	}
 
+	async getGuild(serverID) {
+
+		return this.client.guilds.get(serverID);
+	}
+
+	async createChannel(channelName, categoryName = null) {
+
+		var guild = await this.getGuild(this.serverID);
+		var channels = guild.channels;
+		var channel = null;
+		
+		if(categoryName == null) {
+
+			// check channel name
+			channel = channels.find((channel) => channel.name === channelName);
+		}
+		else {
+
+			// check channel name and parent (category) name
+			channel = channels.find((channel) => {
+				
+				let parent = channel.parent;
+				return (parent && channel.name === channelName && channel.parent.name === categoryName)
+			});
+		}
+
+		if(!channel) {
+
+			channel = await guild.createChannel(channelName);
+
+			if(categoryName != null) {
+
+				var category = channels.find((channel) => {
+					return (channel.type === "category" && channel.name === categoryName);
+				});
+
+				if(!category) {
+
+					category = await guild.createChannel(categoryName, "category");
+				}
+				else {
+
+					logger.warn("tried to create a category that already exists! (" + channelName + ")");
+				}
+
+				channel.setParent(category);
+			}
+		}
+		else {
+
+			logger.warn("tried to create a channel that already exists! (" + channelName + ")");
+		}
+	}
+
+	async removeChannel(channelName, categoryName = null) {
+
+		var guild = this.getGuild(this.serverID);
+		var channels = guild.channels;
+
+		if(categoryName == null) {
+
+			// check channel name
+			channel = channels.find((channel) => channel.name === channelName);
+		}
+		else {
+
+			// check channel name and parent (category) name
+			channel = channels.find((channel) => {
+				
+				let parent = channel.parent;
+				return (parent && channel.name === channelName && channel.parent.name === categoryName)
+			});
+		}
+
+		if(!channel) {
+			
+			channel.delete();
+		}
+	}
+
+	/**
+	 * Sets up a category and channels to use for an event.
+	 *
+	 */
+	async createEventChannel(eventName) {
+
+		logger.info("creating channels for event '" + eventName + "'...");
+
+		var guild = this.client.guilds.get(this.serverID);
+		var channels = guild.channels;
+		var categoryName = "Event - " + eventName;
+
+		let category = channels.find(channel => channel.name === categoryName);
+
+		if(!category) {
+
+			category = await guild.createChannel(categoryName, "category");
+		}
+		else {
+
+			logger.warn("the respective category for this event already exists! reusing...");
+		}
+
+		const channel_chatName = "discussion";
+		let channel_chat = channels.find(channel => {
+
+			if(channel.name === channel_chatName && channel.parentID == category.id) {
+
+				return true;
+			}
+			else {
+
+				return false;
+			}
+		});
+
+		if(!channel_chat) {
+
+			channel_chat = await guild.createChannel(channel_chatName);
+			channel_chat.setParent(category);
+		}
+		else {
+
+			logger.warn("the respective discussion channel for this event already exists! reusing...");
+		}
+	}
+
 	async connect(client = this.client)
 	{
 		if(this.connected) return;
