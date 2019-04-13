@@ -1,38 +1,38 @@
 
+const Database = require("./database");
+
 /* For timing functions */
 const { performance } = require("perf_hooks");
 
 /* PostgreSQL API */
 const { Client } = require("pg");
 
-const { parse, unparse } = require("uuid-parse"); // for parsing whatever PG returns
 const chalk              = require("chalk");
 const slugify            = require("slugify");
 
 const logger = new (require("../util/logger"))("sql");
 
-//const uuidv4 = require("uuid/v4");
-//const UUID_LENGTH = 36; // 32 hex + 4 dashes
-
 const User =       require("../user");
 const Round =      require("../round");
 const Match =      require("../match");
-const Tournament = require("../tournament");
 
 const { getRoundWins, getMatchPoint } = require("../util/matchutils");
 
 /**
  * A PostgreSQL Database.
  *
- * @class
+ * @extends Database
  */
-class SQLDatabase {
+class SQLDatabase extends Database {
 
 	/**
 	 * Configures a SQL Database.
+	 *
+	 * @param {string} uri The URI to the PostgreSQL database
 	 */
 	constructor(uri = process.env.DATABASE_URL) {
 
+		super();
 		if(!uri) {
 
 			logger.warn("ev 'DATABASE_URL' is missing! any database calls will throw an error.");
@@ -135,8 +135,7 @@ class SQLDatabase {
 	/**
 	 * Opens a connection to the SQL database, closes it, then returns.
 	 *
-	 * @async
-	 * @returns {Promise<boolean>}
+	 * @returns {void}
 	 */
 	async test() {
 
@@ -206,9 +205,9 @@ class SQLDatabase {
 	 *
 	 * @returns {User} The user that was cached.
 	 */
-	async _cacheUser(user) {
-		this.userCache.set(user.uuid, user);
+	async cacheUser(user) {
 
+		this.userCache.set(user.uuid, user);
 		return user;
 	}
 
@@ -219,20 +218,13 @@ class SQLDatabase {
 	 *
 	 * @returns {?User} The cached user or null.
 	 */
-	async _getCachedUser(uuid) {
+	async getCachedUser(uuid) {
+
 		return this.userCache.get(uuid) || null;
 	}
 
-	/**
-	 * Adds a user. The name of the user must be a string of 32 characters or less.
-	 * If a discriminator isn't provided, one will be generated randomly.
-	 *
-	 * @param {string} name   the name of the user to create
-	 * @param {string} [dscr] the descriminator of the user
-	 *
-	 * @returns {User} the user that was created
-	 */
-	async add_user(name, dscr = this.dscr()) {
+	/** @override */
+	async addUser(name, dscr = this.dscr()) {
 
 		var tag = name + "#" + dscr;
 		const statement = `
@@ -259,16 +251,95 @@ class SQLDatabase {
 		}
 	}
 
-	/**
-	* Links a user to a Discord ID.
-	*
-	* @async
-	* @param {string} discord_id the Discord ID to link
-	* @param {string} uuid the uuid of the user to link it to
-	*
-	* @returns {Promise<User>} the user (after linking)
-	*/
-	async link_user_discord(discord_id, uuid) {
+	/** @override */
+	async getUser(tag) {
+
+		if(!tag.includes("#"))
+			return Promise.reject(new Error("nametag does not contain a '#'"));
+
+		var split = tag.split("#");
+		var name = split[0];
+		var dscr = split[1];
+
+		const statement = `
+		SELECT * FROM users
+		WHERE name=$1 AND discriminator=$2
+		`;
+
+		var res = await this.pquery(statement, [name, dscr]);
+
+		if(!res.rows.length)
+			throw new Error(`the user ${ tag } does not exist`);
+
+		return this.cacheUser(await User.load(res.rows[0]));
+	}
+
+	/** @override */
+	async getUserByID(uuid) {
+
+		if(!Array.isArray(uuid)) { // find a single user
+
+			// attempt to retrieve from cache
+			let user = await this.getCachedUser(uuid);
+			if(user) return user;
+
+			// not cached - do a query
+			const q = "SELECT * FROM users WHERE uuid=$1";
+
+			let res = await this.pquery(q, [uuid]);
+
+			if(res.rows.length == 0)
+				throw new Error("this user does not exist (uuid = " + uuid + ")");
+
+			return this.cacheUser(await User.load(res.rows[0]));
+		}
+		else if(Array.isArray(uuid)) { // find multiple users recursively
+		
+			let t = performance.now();
+
+			let uuids = uuid;
+
+			var users = [];
+			uuids.forEach(async (uuid) => {
+
+				var user = await this.getUserByID(uuid);
+				users.push(user);
+			});
+
+			logger.info(`retrieved ${ uuids.length } users (${ (performance.now() - t).toFixed(2) }ms)`);
+
+			return users;
+		}
+	}
+
+	/** @override */
+	async searchUsers(partial) {
+
+		const statement = `
+			SELECT * FROM users
+			WHERE LOWER(name) LIKE '%' || $1 || '%'
+		`;
+
+		var res = await this.pquery(statement, [ partial.toLowerCase() ]);
+
+		return Promise.all(res.rows.map(row => User.load(row)));
+	}
+
+	/** @override */
+	async linkUser(uuid, options) {
+
+		if(!options) {
+
+			throw new Error("options for linkUser not provided");
+		}
+
+		if(!options.discord_id) {
+
+			throw new Error("discord id not provided");
+		}
+
+		let discord_id = options.discord_id;
+
 		const statement = `
 			UPDATE users
 			SET discord_id = $1
@@ -292,29 +363,6 @@ class SQLDatabase {
 	}
 
 	/**
-	 * Finds users matching a partial name.
-	 *
-	 * @param {string} partial The partial name of the user.
-	 *
-	 * @returns {Promise<User[]>} The users that match this partial name.
-	 */
-	async findUsers(partial) {
-
-		const statement = `
-			SELECT * FROM users
-			WHERE LOWER(name) LIKE '%' || $1 || '%'
-		`;
-
-		var res = await this.pquery(statement, [ partial.toLowerCase() ]);
-
-		return res.rows.map(row => new User({
-			uuid: row.uuid,
-			name: row.name,
-			discriminator: row.discriminator
-		}));
-	}
-
-	/**
 	 * Constructs a user from a row in the database.
 	 *
 	 * @param {Object} row The database row.
@@ -323,66 +371,10 @@ class SQLDatabase {
 	 */
 	async _constructUser(row) {
 		let user = new User({ uuid: row.uuid, name: row.name, discriminator: row.discriminator});
-		await this._cacheUser(user);
+		await this.cacheUser(user);
 		return user;
 	}
 
-	/**
-	 * Retrieves a user from the database by their UUID.
-	 *
-	 * @param {string} uuid the UUID of the user
-	 *
-	 * @returns {Promise<User>} the user that was retrieved
-	 */
-	async get_user(uuid) {
-
-		// attempt to retrieve from cache
-		let user = await this._getCachedUser(uuid);
-		if(user) return user;
-
-		// not cached - do a query
-		const q = "SELECT * FROM users WHERE uuid=$1";
-
-		let res = await this.pquery(q, [uuid]);
-
-		if(res.rows.length == 0)
-			throw new Error("this user does not exist (uuid = " + uuid + ")");
-
-		return await this._constructUser(res.rows[0]);
-	}
-
-	async getUsers(uuids) {
-		let t = performance.now();
-
-		let users = [],
-			remaining = []; // remaining uncached uuids for the query
-
-		// find cached users
-		for(let uuid of uuids) {
-
-			let user = await this._getCachedUser(uuid);
-			if(user) users.push(user); // add to users if cache found
-			else remaining.push(uuid); // add to remaining if no cache found
-		}
-
-		// do a query for the remaining uuids
-		if(remaining.length > 0) {
-
-			const q = "SELECT * FROM users WHERE uuid = ANY($1)";
-
-			let res = await this.pquery(q, [remaining]);
-
-			// combined cached users and queried users
-			for(let row of res.rows) {
-
-				users.push(await this._constructUser(row));
-			}
-		}
-
-		logger.info(`retrieved ${ uuids.length } users (${ (performance.now() - t).toFixed(2) }ms)`);
-
-		return users;
-	}
 
 	/**
 	 * Retrieves all users from the database.
@@ -398,68 +390,32 @@ class SQLDatabase {
 		let users = [];
 		for(let row of res.rows) {
 
-			users.push(await this._constructUser(row));
+			users.push(await this.cacheUser(User.load(row)));
 		}
 		
 		return users;
 	}
 
-	/**
-	 * Retrieves a user from the database by their nametag.
-	 * This comes in the form name#tag
-	 *
-	 * @async
-	 * @param {string} nametag the nametag of the user
-	 *
-	 * @returns {Promise<User>} the user that was retrieved
-	 */
-	async getUserByTag(tag) {
+	/** @override */
+	async getUserByLink(options) {
 
-		if(!tag.includes("#"))
-			return Promise.reject(new Error("nametag does not contain a '#'"));
+		if(!options) {
 
-		var split = tag.split("#");
-		var name = split[0];
-		var dscr = split[1];
-
-		const statement = `
-		SELECT * FROM users
-		WHERE name=$1 AND discriminator=$2
-		`;
-
-		var res = await this.pquery(statement, [name, dscr]);
-
-		if(!res.rows.length)
-			throw new Error(`the user ${ tag } does not exist`);
-
-		var data = res.rows[0];
-		return new User({
-			uuid: data.uuid,
-			name: data.name,
-			discriminator: data.discriminator
-		});
-	}
-
-	/**
-	 * Retrieves a user by their linked Discord ID.
-	 * If a user with this Discord ID doesn't exist, an error will be thrown.
-	 *
-	 * @param {string} discord_id the user's Discord ID.
-	 *
-	 * @returns {?User} the user that was retrived
-	 */
-	async get_user_discord(discord_id) {
-		const statement = `
-			SELECT * FROM users WHERE discord_id=$1;
-		`;
-
-		let res = await this.pquery(statement, [discord_id]);
-
-		if(res.rows.length == 0) {
-			return null;
+			throw new Error("parameter must be an object");
 		}
 
-		return this._constructUser(res.rows[0]);
+		const q = "SELECT * FROM users WHERE discord_id=$1;";
+
+		let res = await this.pquery(q, [ options.discord ]);
+
+		if(res.rows.length == 0) {
+
+			return null;
+		}
+		else {
+
+			return this._constructUser(res.rows[0]);
+		}
 	}
 
 	/**
@@ -479,16 +435,7 @@ class SQLDatabase {
 	// MATCH / ROUND QUERIES
 	//==========================================================================
 
-	/**
-	 * Inserts an empty match with base information.
-	 * Returns the ID of the match that was inserted.
-	 * Using this method on its own is not recommended. Use
-	 * {@link MatchBuilder#open} instead.
-	 *
-	 * @param {MatchBuilder} mb The match builder.
-	 *
-	 * @return {number} The ID of the inserted match.
-	 */
+	/** @override */
 	async openMatch(mb) {
 		const q = `
 			INSERT INTO matches(users, num_rounds) VALUES ($1, $2)
@@ -569,57 +516,36 @@ class SQLDatabase {
 		}
 	}
 
-	async getRound(id) {
-		const q = "SELECT * FROM rounds WHERE id=$1";
-
-		var res = await this.pquery(q, [id]);
-
-		if(res.rows.length == 0)
-			throw new Error(`round (id=${ id }) does not exist`);
-
-		let row = res.rows[0];
-
-		let users =   await this.getUsers(row.users);
-		let winners = await this.getUsers(row.winners);
-
-		return new Round({
-			id: id,
-			users: users,
-			winners: winners,
-			meta: {} //TODO implement
-		});
-	}
-
 	/**
-	 * Retrieves multiple rounds from the database.
+	 * Retrieves rounds by their ID from the database.
 	 *
 	 * @param {number[]} ids The IDs of the rounds to retrieve.
 	 *
-	 * @returns {Round[]} rounds The rounds that was retrieved.
+	 * @returns {Promise<Round>} The rounds that was retrieved.
 	 */
-	async getRounds(ids) {
+	async getRound(ids) {
+
 		let t1 = performance.now();
 
+		var single = false;
+
+		if(!Array.isArray(ids)) {
+			
+			single = true;
+			ids = [ids];
+		}
 		const q = "SELECT * FROM rounds WHERE id = ANY($1)";
-
 		let res = await this.pquery(q, [ids]);
+		let refs = res.rows;
+		
+		logger.info(`read rounds ${ ids } in ${ performance.now() - t1 }ms`);
 
-		let rounds = Promise.all(res.rows.map(async row => {
+		// convert references into rounds
+		let rounds = Promise.all(refs.map(r => Round.load(r)));
 
-			let users = await this.getUsers(row.users);
-			let winrs = await this.getUsers(row.winners);
+		logger.info(`loaded rounds ${ ids } in ${ performance.now() - t1 }ms`);
 
-			return new Round({
-				id: row.id,
-				users: users,
-				winners: winrs,
-				meta: {} //TODO implement
-			});
-		}));
-
-		logger.info(`retrieved rounds ${ ids } (${ performance.now() - t1 }ms)`);
-
-		return rounds;
+		return (single ? (await rounds)[0] : rounds);
 	}
 
 	async _constructMatch(row) {
@@ -663,14 +589,19 @@ class SQLDatabase {
 	 * @returns {Match} The retrieved match.
 	 */
 	async getMatch(id) {
+		
 		const q = "SELECT * FROM matches WHERE id=$1";
 
-		var res = await this.pquery(q, [id]);
+		let res = await this.pquery(q, [id]);
 
-		if(res.rows.length == 0)
+		if(res.rows.length == 0) {
+
 			throw new Error(`match #${ id } does not exist`);
+		}
+		else {
 
-		return await this._constructMatch(res.rows[0]);
+			return await Match.load(res.rows[0]);
+		}
 	}
 
 	/**
@@ -679,6 +610,7 @@ class SQLDatabase {
 	 * @returns {Match[]} An array of matches.
 	 */
 	async getAllMatches() {
+
 		const q = "SELECT * FROM matches";
 
 		var res = await this.query(q);
@@ -687,7 +619,7 @@ class SQLDatabase {
 
 		let matches = [];
 		for(let row of rows) {
-			matches.push(await this._constructMatch(row));
+			matches.push(await Match.load(row));
 		}
 
 		return matches;
@@ -746,8 +678,6 @@ class SQLDatabase {
 	 */
 	async _initTournamentTable() {
 		// id: The ID of the tournament. Used as the PK and for other tables to use for referencing.
-		// slug: The slug of the tournament. Used for web-friendly links and also as shorthand
-		//       for a possibly very long title.
 		// title: The fancy title of the tournament.
 		// gametype: The ID of the gametype to use. This will decide most
 		//           default match rules as well as what metainfo will be required.
@@ -757,9 +687,8 @@ class SQLDatabase {
 		await this.query(`
 			CREATE TABLE IF NOT EXISTS tournaments (
 				id         serial PRIMARY KEY,
-				slug       VARCHAR(32) UNIQUE,
-				title      VARCHAR(64),
-				gametype   integer,
+				title      VARCHAR(128),
+				game_id    VARCHAR(64),
 				open_time  bigint,
 				close_time bigint,
 				users      UUID[]
@@ -772,9 +701,6 @@ class SQLDatabase {
 	 *
 	 * @param {Object}   data            Information about the tournament.
 	 * @param {string}   data.title      The formatted title of the tournament.
-	 * @param {string}   data.slug       The slug of the tournament to use for
-	 *                                   web-friendly links or as shorthand for
-	 *                                   the tournament in commands.
 	 * @param {Gametype} data.gametype   The game that is being played.
 	 * @param {number}   data.open_time  The time of which this tournament opens.
 	 * @param {number}   data.close_time The time of which this tournament closes.
@@ -782,6 +708,7 @@ class SQLDatabase {
 	 * @returns {Tournament} The tournament that was created.
 	 */
 	async addTournament(data) {
+
 		if(!data.slug) data.slug = slugify(data.title);
 
 		const q = `
@@ -791,6 +718,7 @@ class SQLDatabase {
 
 		let res = await this.pquery(q, [data.slug, data.title, data.open_time, data.close_time]);
 
+		return res;
 	}
 
 }
