@@ -91,7 +91,7 @@ passport.serializeUser((user, done) =>
 
 passport.deserializeUser(async (uuid, done) =>
 {
-	let user = await shen().db.get_user(uuid); // convert uuid into user
+	let user = await shen().getUserByID(uuid); // convert uuid into user
 	done(null, user);
 });
 
@@ -108,7 +108,7 @@ passport.use(new DiscordStrategy(
 	async (_req, _accessToken, _refreshToken, profile, done) => {
 	
 		// attempt to get a user with this discord ID
-		let user = await shen().db.get_user_discord(profile.id);
+		let user = await shen().getUserByLink({ discord: profile.id });
 
 		if(user) // return user
 		{
@@ -259,7 +259,7 @@ cl.registerObject(require("./cmd/match_cmd"));
 cl.registerObject(require("./cmd/rank_cmd"));
 
 // sql test command
-cl.register("sql-test", async (sender, _args) => {
+cl.register("sql-test", async (sender, args) => {
 
 	sender.info("testing SQL connection...");
 
