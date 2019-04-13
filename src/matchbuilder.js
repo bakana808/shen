@@ -224,8 +224,11 @@ class MatchBuilder {
 	}
 
 	getMatch() {
-		if(this.in_progress)
+
+		if(this.in_progress) {
+
 			throw new Error("tried to get an in-progress match");
+		}
 
 		return new Match({
 			id:         this.id,
@@ -242,7 +245,6 @@ class MatchBuilder {
 	 *
 	 * @param {Object}  data         Information about the round.
 	 * @param {?number} data.id      The ID of the round (if this match builder isn't live)
-	 * @param {User[]}  data.users   The users in this round.
 	 * @param {User[]}  data.winners The winners of this round.
 	 * @param {Object}  data.meta    Any metainfo about this round.
 	 *
@@ -270,11 +272,19 @@ class MatchBuilder {
 
 		var round;
 		if(this.live) {
-			round = await shen().db.addRound(data);
-		} else {
+
+			round = await shen().db.addRound({
+				id:      data.id,
+				users:   this.users,
+				winners: data.winners,
+				meta:    data.meta
+			});
+		}
+		else {
+
 			round = new Round({
 				id:      data.id,
-				users:   data.users,
+				users:   this.users,
 				winners: data.winners,
 				meta:    data.meta
 			});
