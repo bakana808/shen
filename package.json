@@ -53,22 +53,12 @@
 			"ecmaVersion": 2017
 		},
 		"rules": {
-			"no-unused-vars": [
-				"warn",
-				{
-					"vars": "all",
-					"args": "all",
-					"argsIgnorePattern": "^_"
-				}
-			],
+			"no-unused-vars": "off",
 			"indent": [
 				"warn",
 				"tab"
 			],
-			"linebreak-style": [
-				"error",
-				"windows"
-			],
+			"linebreak-style": "off",
 			"quotes": [
 				"error",
 				"double"
