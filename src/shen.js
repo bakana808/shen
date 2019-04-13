@@ -1,6 +1,9 @@
 
 const logger = new (require("./util/logger"))();
 
+const Match = require("./match");
+const Round = require("./round");
+
 /**
  * Contains all the basic API functions of this application.
  */
@@ -102,46 +105,20 @@ class ShenAPI {
 		return shen.db.fetchTournament(tournamentId);
 	}
 
-	static fetchMatches(tournamentId) {
-		if(tournamentId == null) { // fetch all matches
-			return shen.db.fetchMatches();
-		} else {
-			return shen.db.fetchMatches(tournamentId);
-		}
-	}
-
-	static fetchTournamentMatch(tournamentId, matchId) {
-		return shen.db.fetchTournamentMatch(tournamentId, matchId);
-	}
-
-	static fetchTournamentUserIds(tournamentId) {
-		return shen.db.fetchTournamentUserIds(tournamentId);
-	}
-
 	//==========================================================================
 	// USER METHODS
 	//==========================================================================
-	
-	/**
-	 * Returns a User by their userID. If it doesn't exist, then a new
-	 * User will be created.
-	 *
-	 * @returns User
-	 */
-	static findOrCreateUser(userID) {
-		return shen.db.fetchUser
-	}
-	
+
 	/**
 	 * Returns a User by their tag.
 	 *
 	 * @param {string} tag The User's tag
 	 *
-	 * @returns User
+	 * @returns {Promise<User>} The User that was found, or null
 	 */
 	async getUser(tag) {
 
-		return this.db.getUserByTag(tag);
+		return this.db.getUser(tag);
 	}
 
 	/**
@@ -149,11 +126,11 @@ class ShenAPI {
 	 *
 	 * @param {string} uuid The User's UUID
 	 *
-	 * @returns User
+	 * @returns {Promise<User>} The User that was found, or null
 	 */
 	async getUserByID(uuid) {
 
-		return this.db.get_user(uuid);
+		return this.db.getUserByID(uuid);
 	}
 
 	/**
@@ -161,7 +138,7 @@ class ShenAPI {
 	 *
 	 * @param {string} partial A partial search term for a User's name
 	 *
-	 * @returns {Promise<User[]>}
+	 * @returns {Promise<User[]>} An array of Users matching the partial term
 	 */
 	async searchUsers(partial) {
 
@@ -180,10 +157,69 @@ class ShenAPI {
 		return shen.db.addUser(userid);
 	}
 
-	//endregion//
+	// MATCH METHODS
+	//==========================================================================
+	
+	/**
+	 * Retrieves a match by its ID.
+	 *
+	 * @param {string} id The ID of the match.
+	 *
+	 * @returns {Promise<Match?>} The retrieved match.
+	 */
+	async getMatch(id) {
 
-	//region// Object Constructors /////////////////////////////////////////////
+		return this.db.getMatch(id);
+	}
 
+	/**
+	 * Retrieves a round by its ID.
+	 *
+	 * @param {string} id The ID of the round.
+	 *
+	 * @returns {Promise<Round?>} The retrieved round.
+	 */
+	async getRound(id) {
+
+		return this.db.getRound(id);
+	}
+
+	static fetchMatches(tournamentId) {
+		if(tournamentId == null) { // fetch all matches
+			return shen.db.fetchMatches();
+		} else {
+			return shen.db.fetchMatches(tournamentId);
+		}
+	}
+
+	static fetchTournamentMatch(tournamentId, matchId) {
+		return shen.db.fetchTournamentMatch(tournamentId, matchId);
+	}
+
+	static fetchTournamentUserIds(tournamentId) {
+		return shen.db.fetchTournamentUserIds(tournamentId);
+	}
+
+	//==========================================================================
+	// TOURNAMENT METHODS
+	//==========================================================================
+	
+	/**
+	 * Retrieves a tournament by its ID.
+	 *
+	 * @param {string} id The ID of the tournament (a number)
+	 *
+	 * @returns {Promise<Tournament>}
+	 */
+	async getTournament(id) {
+
+
+	}
+
+	//==========================================================================
+	// UTILITY METHODS
+	//==========================================================================
+	
 	static bestOf(n, scores) {
 		//var odd = n % 2; // if odd is 1, then a tie is impossible
 		var scoreToWin = Math.ceil(n / 2);
