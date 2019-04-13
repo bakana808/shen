@@ -1,7 +1,12 @@
 
+const shen = require("./shen").shen;
 const { findUserIn } = require("./util/userutils");
 var Options          = require("./util/options");
 var Event            = require("./event");
+
+const { getRoundWins, getMatchPoint } = require("./util/matchutils");
+
+const logger = new (require("./util/logger"))("match");
 
 /**
  * Represents a tournament match.
@@ -10,8 +15,6 @@ var Event            = require("./event");
  *   1. the unique id referencing this specific match
  *   2. the Users in this match.
  *   3. the winners (Users) of this match.
- *
- * @class
  */
 class Match {
 
@@ -22,51 +25,114 @@ class Match {
 		 *
 		 * @type {number}
 		 */
-		Object.defineProperty(this, "id", {value: data.id});
+		Object.defineProperty(this, "id", {
+			value: data.id,
+			enumerable: true
+		});
 
 		/**
 		 * The raw database object that was used to construct this match.
 		 *
 		 * @type {object}
 		 */
-		Object.defineProperty(this, "obj", {value: data.obj});
+		Object.defineProperty(this, "obj", {
+			value: data.obj,
+			enumerable: true
+		});
 
 		/**
 		 * The array of users that are involved in this match.
 		 *
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "users", {value: data.users});
+		Object.defineProperty(this, "users", {
+			value: data.users,
+			enumerable: true
+		});
 
 		/**
 		 * The array of users that are considered "winners" of this match.
 		 *
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "winners", {value: data.winners});
+		Object.defineProperty(this, "winners", {
+			value: data.winners,
+			enumerable: true
+		});
 
 		/**
 		 * The tournament that this match is for.
 		 *
 		 * @type {Tournament}
 		 */
-		Object.defineProperty(this, "tournament", {value: data.tournament});
+		Object.defineProperty(this, "tournament", {
+			value: data.tournament,
+			enumerable: true
+		});
 
 		/**
 		 * The maximum amount of rounds in this tournament.
 		 *
 		 * @type {number}
 		 */
-		Object.defineProperty(this, "num_rounds", { value: data.num_rounds });
+		Object.defineProperty(this, "num_rounds", {
+			value: data.num_rounds,
+			enumerable: true
+		});
 
 		/**
 		 * The rounds in this tournament.
 		 *
 		 * @type {Round[]}
 		 */
-		Object.defineProperty(this, "rounds", {value: data.rounds});
+		Object.defineProperty(this, "rounds", {
+			value: data.rounds,
+			enumerable: true
+		});
+	}
 
+	/**
+	 * Constructs a Match using data containing references.
+	 */
+	static async load(refs) {
 
+		if(refs.in_progress) {
+
+			throw new Error(`cannot construct an empty match (id=${refs.id})`);
+		}
+
+		let shen = require("./shen").shen;
+
+		let users = await shen().getUserByID(refs.users);
+		let winners;
+
+		let rounds = await shen().getRound(refs.rounds);
+
+		if(!refs.winners || refs.winners.length == 0) {
+
+			logger.warn(`match #${refs.id} is missing winners, calculating manually`);
+
+			let matchPoint = getMatchPoint(refs.num_rounds);
+			winners = [];
+
+			for(let user of users) {
+
+				if(getRoundWins(user, rounds) >= matchPoint) winners.push(user);
+			}
+		}
+		else {
+
+			winners = await shen().getUserByID(refs.winners);
+		}
+
+		return new Match({
+			id:         refs.id,
+			users:      users,
+			winners:    winners,
+			tournament: refs.tournament,
+			num_rounds: refs.num_rounds,
+			rounds:     rounds
+		});
 	}
 
 	/**

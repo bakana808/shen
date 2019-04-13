@@ -25,7 +25,7 @@ class User {
 		 * @type {string}
 		 * @readonly
 		 */
-		Object.defineProperty(this, "uuid", { value: data.uuid, writable: false });
+		Object.defineProperty(this, "uuid", { value: data.uuid, enumerable: true });
 
 		/**
 		 * The username of the user.
@@ -33,7 +33,7 @@ class User {
 		 * @type {string}
 		 * @readonly
 		 */
-		Object.defineProperty(this, "name", { value: data.name, writable: false });
+		Object.defineProperty(this, "name", { value: data.name, enumerable: true });
 
 		/**
 		 * The discriminator of this user, a 4-digit numerical string.
@@ -43,7 +43,18 @@ class User {
 		 * @type {string}
 		 * @readonly
 		 */
-		Object.defineProperty(this, "discriminator", { value: data.discriminator, writable: false });
+		Object.defineProperty(this, "discriminator", { value: data.discriminator, enumerable: true });
+	}
+
+	static async load(refs) {
+
+		var user = new User({
+			uuid: refs.uuid,
+			name: refs.name,
+			discriminator: refs.discriminator
+		});
+
+		return user;
 	}
 
 	/**

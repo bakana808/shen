@@ -25,7 +25,7 @@ class Round {
 		 * @readonly
 		 * @type {number}
 		 */
-		Object.defineProperty(this, "id", { value: options.id, writable: false });
+		Object.defineProperty(this, "id", { value: options.id, enumerable: true });
 
 		/**
 		 * The users involved in the round.
@@ -33,7 +33,7 @@ class Round {
 		 * @readonly
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "users", { value: options.users, writable: false });
+		Object.defineProperty(this, "users", { value: options.users });
 
 		/**
 		 * The winners of this round.
@@ -42,7 +42,7 @@ class Round {
 		 * @readonly
 		 * @type {User[]}
 		 */
-		Object.defineProperty(this, "winners", { value: options.winners, writable: false });
+		Object.defineProperty(this, "winners", { value: options.winners, enumerable: true });
 
 		/**
 		 * Metainformation about the round.
@@ -51,9 +51,7 @@ class Round {
 		 * @readonly
 		 * @type {Object}
 		 */
-		Object.defineProperty(this, "meta", { value: options.meta, writable: false });
-
-
+		Object.defineProperty(this, "meta", { value: options.meta, enumerable: true });
 	}
 
 	/**
@@ -66,6 +64,44 @@ class Round {
 }
 
 module.exports = Round;
+
+/**
+ * Creates a Round using reference data.
+ * This will retrieve data from the database.
+ *
+ * @param {object}   refs         An object containing reference data.
+ * @param {string}   refs.id      The ID of this round.
+ * @param {string[]} refs.users   An array of user UUIDs.
+ * @param {string[]} refs.winners An array of user UUIDs that won the round.
+ * @param {object}   refs.meta    An object containing any metainfo about the round.
+ *
+ * @returns {Promise<Round>} The Round that was loaded.
+ */
+async function load(refs) {
+
+	let shen = require("./shen").shen;
+
+	let users =   await shen().getUserByID(refs.users);
+	let winners = await shen().getUserByID(refs.winners);
+
+	console.log("winners: " + refs.winners);
+
+	let meta =    {};
+	
+	if(refs.meta && (typeof refs.meta) === "string") {
+
+		meta = JSON.parse(refs.meta);
+	}
+
+	return new Round({
+		id: refs.id,
+		users: users,
+		winners: winners,
+		meta: meta
+	});
+}
+
+module.exports.load = load;
 
 // var Match = require("./match");
 //
