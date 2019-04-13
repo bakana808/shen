@@ -133,6 +133,11 @@ class ShenAPI {
 		return this.db.getUserByID(uuid);
 	}
 
+	async getUserByLink(options) {
+
+		return this.db.getUserByLink(options);
+	}
+
 	/**
 	 * Searches for users partially matching the name provided.
 	 *
