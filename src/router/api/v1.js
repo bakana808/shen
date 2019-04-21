@@ -96,7 +96,7 @@ router.get("/api/v1/user", async (req, res) => {
 
 				success: true,
 				user: {
-					uuid: user.uuid,
+					uuid: user.id,
 					name: user.name,
 					discriminator: user.discriminator
 				}
