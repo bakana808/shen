@@ -11,3 +11,6 @@ profile.log
 nano.save
 
 tags
+
+.nvimlog
+/dist
