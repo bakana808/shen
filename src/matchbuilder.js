@@ -1,8 +1,10 @@
 
 const { findUserIn } = require("./util/userutils");
 const Logger         = require("./util/logger");
+const User           = require("./user");
 const Match          = require("./match");
 const Round          = require("./round");
+const Tournament     = require("./tournament");
 
 const { shen }       = require("./shen");
 
@@ -49,7 +51,7 @@ class MatchBuilder {
 	 * @param {?Tournament} [options.tournament = null]  The tournament this match belongs to.
 	 * @param {number}      [options.num_rounds = 3]     The maximum amount of rounds in the match.
 	 *
-	 * @param {Rounds[]}    [options.rounds = []]        The current rounds in this match
+	 * @param {Match[]}     [options.matches = []]        The current rounds in this match
 	 *                                                   (if continuing a match in progress)
 	 *
 	 * @param {User[]}      [options.winners = []]       The current winners in this match
