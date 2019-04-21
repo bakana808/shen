@@ -1,29 +1,32 @@
 
-const Database = require("./database");
-
 /* For timing functions */
 const { performance } = require("perf_hooks");
 
 /* PostgreSQL API */
 const { Client } = require("pg");
 
-const chalk              = require("chalk");
-const slugify            = require("slugify");
+// @ts-ignore
+const chalk = require("chalk");
 
-const logger = new (require("../util/logger"))("sql");
+// @ts-ignore
+const slugify = require("slugify");
 
-const User =       require("../user");
-const Round =      require("../round");
-const Match =      require("../match");
+const Logger = require("../util/logger");
+
+const log = new Logger("sql");
+
+
+const SQLResult = require("./sql/result");
+const MatchTable = require("./sql/match");
+const UserTable = require("./sql/user");
 
 const { getRoundWins, getMatchPoint } = require("../util/matchutils");
 
 /**
  * A PostgreSQL Database.
  *
- * @extends Database
  */
-class SQLDatabase extends Database {
+class SQLDatabase {
 
 	/**
 	 * Configures a SQL Database.
@@ -33,13 +36,21 @@ class SQLDatabase extends Database {
 	constructor(uri = process.env.DATABASE_URL) {
 
 		super();
+
 		if(!uri) {
 
-			logger.warn("ev 'DATABASE_URL' is missing! any database calls will throw an error.");
+			log.warn("ev 'DATABASE_URL' is missing! any database calls will throw an error.");
 		}
+
+		/**
+		 * @type {Logger}
+		 */
+		this.log = log;
+
 		/**
 		 * The database URI to use.
 		 *
+		 * @private
 		 * @member {string}
 		 * @readonly
 		 */
@@ -55,6 +66,7 @@ class SQLDatabase extends Database {
 		/**
 		 * The currently used client.
 		 *
+		 * @private
 		 * @member {pg.Client}
 		 */
 		this.client;
@@ -66,20 +78,13 @@ class SQLDatabase extends Database {
 		 */
 		this.userCache = new Map();
 
-		/* create user table */
-		this.query(`
-			CREATE TABLE IF NOT EXISTS users(
-				uuid       UUID PRIMARY KEY  DEFAULT uuid_generate_v4(),
-				discord_id VARCHAR(20),
-				verified   BOOLEAN           DEFAULT false,
-				tag        CHAR(4),
-				name       VARCHAR(32)
-			);
-		`);
+		this.set = new MatchTable(this);
 
-		/* create round table */
+		this.user = new UserTable(this);
+
+		/* create match table */
 		this.query(`
-			CREATE TABLE IF NOT EXISTS rounds(
+			CREATE TABLE IF NOT EXISTS matchs(
 				id serial PRIMARY KEY,
 
 				game integer DEFAULT null,
@@ -89,15 +94,15 @@ class SQLDatabase extends Database {
 			);
 		`);
 
-		/* create match table */
+		/* create set table */
 		this.query(`
-			CREATE TABLE IF NOT EXISTS matches(
+			CREATE TABLE IF NOT EXISTS setes(
 				id     serial PRIMARY KEY,
 
 				tournament   integer DEFAULT null,
 
-				num_rounds integer DEFAULT 0,
-				rounds     integer[],
+				num_matchs integer DEFAULT 0,
+				matchs     integer[],
 
 				users      UUID[],
 				winners    UUID[]
@@ -115,7 +120,7 @@ class SQLDatabase extends Database {
 			await this.client.connect();
 			this.isConnected = true;
 		} else {
-			logger.warn("tried to open a connection that was already open");
+			log.warn("tried to open a connection that was already open");
 		}
 	}
 
@@ -124,7 +129,7 @@ class SQLDatabase extends Database {
 			this.client.end();
 			this.isConnected = false;
 		} else {
-			logger.warn("tried to close a connection that was already closed");
+			log.warn("tried to close a connection that was already closed");
 		}
 	}
 
@@ -134,8 +139,6 @@ class SQLDatabase extends Database {
 
 	/**
 	 * Opens a connection to the SQL database, closes it, then returns.
-	 *
-	 * @returns {void}
 	 */
 	async test() {
 
@@ -146,7 +149,7 @@ class SQLDatabase extends Database {
 	/**
 	 * The result of a successful query.
 	 *
-	 * @external Result
+	 * @external QueryResult
 	 * @see {@link https://node-postgres.com/api/result}
 	 */
 
@@ -155,12 +158,14 @@ class SQLDatabase extends Database {
 	 *
 	 * @param {string} statement the query to run
 	 *
-	 * @returns {external:Result} the result of the query if successful
+	 * @returns {Promise<SQLResult>} the result of the query if successful
 	 */
 	async query(statement) {
 
 		await this.openSilently();
-		return await this.client.query(statement);
+
+		let result = await this.client.query(statement);
+		return new SQLResult(this, result);
 	}
 
 	/**
@@ -169,148 +174,34 @@ class SQLDatabase extends Database {
 	 * @param {string} statement the query to run
 	 * @param {Array}  values    the arguments to use in the query
 	 *
-	 * @returns {external:Result} the result of the query if successful
+	 * @returns {Promise<SQLResult>} the result of the query if successful
 	 */
 	async pquery(statement, values) {
 
 		await this.openSilently();
-		return await this.client.query(statement, values);
-	}
-
-	/**
-	 * Generates a discriminator. This will be a number between 0 and 9999,
-	 * and will be padded with 0s to 4 characters.
-	 *
-	 * TODO move this to another class
-	 *
-	 * @returns {string} a 4-character numerical tag
-	 */
-	dscr() {
-		const DSCR_LENGTH = 4;
-
-		var n = Math.floor(1000 + (Math.random() * 9000)); // generates a tag between 0000 and 9999
-		var length = n.toString().length;
-
-		return "0".repeat(DSCR_LENGTH - length) + n;
+		let result = await this.client.query(statement, values);
+		return new SQLResult(this, result);
 	}
 
 	//==========================================================================
 	// USER QUERIES
 	//==========================================================================
 	
-	/**
-	 * Caches a user. This will be used where possible for future calls to getUser or getUsers.
-	 *
-	 * @param {User} user The user to cache.
-	 *
-	 * @returns {User} The user that was cached.
-	 */
-	async cacheUser(user) {
+	/** @override */
+	async addUser(name, dscr) { return this.user.addUser(name, dscr); }
 
-		this.userCache.set(user.uuid, user);
-		return user;
-	}
+	/** @override */
+	async loadUser(tag) { return this.user.loadUser(tag); }
 
 	/**
-	 * Tries to find a cached user. If this user wasn't cached, null will be returned.
+	 * @override
+	 * @inheritdoc
 	 *
-	 * @param {string} uuid The uuid of the user to retrieve.
+	 * @param {string[]} ids
 	 *
-	 * @returns {?User} The cached user or null.
+	 * @returns {Promise<User[]>}
 	 */
-	async getCachedUser(uuid) {
-
-		return this.userCache.get(uuid) || null;
-	}
-
-	/** @override */
-	async addUser(name, dscr = this.dscr()) {
-
-		var tag = name + "#" + dscr;
-		const statement = `
-			INSERT INTO users(uuid, discriminator, name) VALUES(
-				uuid_generate_v4(),
-				$1,
-				$2
-			)
-			RETURNING *;
-			`;
-
-		try {
-			var res = await this.pquery(statement, [dscr, name]);
-			logger.info(`added new user ${ tag.green } (uuid: ${ res.rows[0].uuid })`);
-
-			return new User({
-				uuid: res.rows[0].uuid,
-				name: name,
-				discriminator: dscr
-			});
-		} catch (e) {
-			logger.warn(`failed to add user ${ tag.green }`);
-			throw e;
-		}
-	}
-
-	/** @override */
-	async getUser(tag) {
-
-		if(!tag.includes("#"))
-			return Promise.reject(new Error("nametag does not contain a '#'"));
-
-		var split = tag.split("#");
-		var name = split[0];
-		var dscr = split[1];
-
-		const statement = `
-		SELECT * FROM users
-		WHERE name=$1 AND discriminator=$2
-		`;
-
-		var res = await this.pquery(statement, [name, dscr]);
-
-		if(!res.rows.length)
-			throw new Error(`the user ${ tag } does not exist`);
-
-		return this.cacheUser(await User.load(res.rows[0]));
-	}
-
-	/** @override */
-	async getUserByID(uuid) {
-
-		if(!Array.isArray(uuid)) { // find a single user
-
-			// attempt to retrieve from cache
-			let user = await this.getCachedUser(uuid);
-			if(user) return user;
-
-			// not cached - do a query
-			const q = "SELECT * FROM users WHERE uuid=$1";
-
-			let res = await this.pquery(q, [uuid]);
-
-			if(res.rows.length == 0)
-				throw new Error("this user does not exist (uuid = " + uuid + ")");
-
-			return this.cacheUser(await User.load(res.rows[0]));
-		}
-		else if(Array.isArray(uuid)) { // find multiple users recursively
-		
-			let t = performance.now();
-
-			let uuids = uuid;
-
-			var users = [];
-			uuids.forEach(async (uuid) => {
-
-				var user = await this.getUserByID(uuid);
-				users.push(user);
-			});
-
-			logger.info(`retrieved ${ uuids.length } users (${ (performance.now() - t).toFixed(2) }ms)`);
-
-			return users;
-		}
-	}
+	async loadUsersByID(...ids) { return this.user.loadUsersByID(ids); }
 
 	/** @override */
 	async searchUsers(partial) {
@@ -322,7 +213,7 @@ class SQLDatabase extends Database {
 
 		var res = await this.pquery(statement, [ partial.toLowerCase() ]);
 
-		return Promise.all(res.rows.map(row => User.load(row)));
+		return res.toUsers();
 	}
 
 	/** @override */
@@ -353,47 +244,14 @@ class SQLDatabase extends Database {
 			
 			let row = res.rows[0];
 			let tag = row.name + "#" + row.discriminator;
-			logger.info(`linked user ${ tag.green } to discord id ${ discord_id.green }`);
-			return this.get_user_discord(discord_id);
+			log.info(`linked user ${ tag.green } to discord id ${ discord_id.green }`);
+
+			return this.loadUsersByID(uuid)[0];
 
 		} else {
 
 			throw new Error("this user does not exist (uuid = " + uuid + ")");
 		}
-	}
-
-	/**
-	 * Constructs a user from a row in the database.
-	 *
-	 * @param {Object} row The database row.
-	 *
-	 * @returns {User} The user that was constructed.
-	 */
-	async _constructUser(row) {
-		let user = new User({ uuid: row.uuid, name: row.name, discriminator: row.discriminator});
-		await this.cacheUser(user);
-		return user;
-	}
-
-
-	/**
-	 * Retrieves all users from the database.
-	 * Not recommended when the user table becomes large.
-	 *
-	 * @return {User[]} An array of users.
-	 */
-	async getAllUsers() {
-		const q = "SELECT * FROM users";
-
-		var res = await this.query(q);
-
-		let users = [];
-		for(let row of res.rows) {
-
-			users.push(await this.cacheUser(User.load(row)));
-		}
-		
-		return users;
 	}
 
 	/** @override */
@@ -408,14 +266,7 @@ class SQLDatabase extends Database {
 
 		let res = await this.pquery(q, [ options.discord ]);
 
-		if(res.rows.length == 0) {
-
-			return null;
-		}
-		else {
-
-			return this._constructUser(res.rows[0]);
-		}
+		return res.toUser();
 	}
 
 	/**
@@ -436,94 +287,91 @@ class SQLDatabase extends Database {
 	//==========================================================================
 
 	/** @override */
-	async openMatch(mb) {
+	async openMatchSet(mb) {
 		const q = `
-			INSERT INTO matches(users, num_rounds) VALUES ($1, $2)
+			INSERT INTO setes(users, num_matchs) VALUES ($1, $2)
 			RETURNING *;
 		`;
 
-		var res = await this.pquery(q, [mb.users.map(user => user.uuid), mb.num_rounds]);
-		logger.info(`opened new match #${ res.rows[0].id }`);
+		var res = await this.pquery(q, [mb.users.map(user => user.uuid), mb.num_matchs]);
+		log.info(`opened new set #${ res.rows[0].id }`);
 
 		return parseInt(res.rows[0].id);
 	}
 
 	/**
-	 * Inserts a round into a match in progress.
+	 * Inserts a match into a set in progress.
 	 *
-	 * @param {Object} options             Information about the round.
-	 * @param {User[]} options.users       The users involved in the round.
-	 * @param {User[]} options.winners     The winners of the round.
-	 * @param {Object} [options.meta = {}] Metainfo about the round.
+	 * @param {Object} options             Information about the match.
+	 * @param {User[]} options.users       The users involved in the match.
+	 * @param {User[]} options.winners     The winners of the match.
+	 * @param {Object} [options.meta = {}] Metainfo about the match.
 	 *
-	 * @returns {Round} The round that was created.
+	 * @returns {Promise<MatchSet>} The match that was created.
 	 */
-	async addRound(data) {
+	async addMatch(options) {
 
-		var id; // ID of the added round
+		var id; // ID of the added match
 
 		const q = `
-			INSERT INTO rounds(users, winners) VALUES ($1, $2)
+			INSERT INTO matchs(users, winners) VALUES ($1, $2)
 			RETURNING *;
 		`;
 
-		let user_uuids = data.users.map(user => user.uuid);
-		let winr_uuids = data.winners.map(user => user.uuid);
+		let user_uuids = options.users.map(user => user.id);
+		let winr_uuids = options.winners.map(user => user.id);
 
 		let res = await this.pquery(q, [user_uuids, winr_uuids]);
-		id = parseInt(res.rows[0].id);
-		logger.info(`added round #${ id }`);
+		log.info(`added match #${ id }`);
 
-		return new Round({
-			id: id,
-			users: data.users,
-			winners: data.winners,
+		return new MatchSet(id, {
+			users: options.users,
 			meta: {}
 		});
 	}
 
 	/**
-	 * Updates a match with information from a MatchBuilder
+	 * Updates a set with information from a MatchSetBuilder
 	 *
-	 * @param {MatchBuilder} mb The match builder.
+	 * param {MatchSetBuilder} mb The set builder.
 	 */
-	async updateMatch(mb) {
+	//async updateMatchSet(mb) {
 
-		const q = `
-			UPDATE matches
-			SET winners     = $1,
-				rounds      = $2,
-				in_progress = $3
-			WHERE id = $4
-		`;
+	//    const q = `
+	//        UPDATE setes
+	//        SET winners     = $1,
+	//            matchs      = $2,
+	//            in_progress = $3
+	//        WHERE id = $4
+	//    `;
 
-		if(mb.id != null) {
+	//    if(mb.id != null) {
 
-			await this.pquery(q, [mb.winners.map(u => u.uuid), mb.rounds.map(r => r.id), mb.in_progress, mb.id]);
+	//        await this.pquery(q, [mb.winners.map(u => u.uuid), mb.matchs.map(r => r.id), mb.in_progress, mb.id]);
 
-			if(mb.in_progress) {
-				logger.info(`updated match #${ mb.id }`);
-				return null;
-			} else {
-				var m = mb.getMatch();
-				logger.info(
-					chalk.green(`completed match #${ m.id } (rids: ${ m.rounds.map(r => r.id) }): `) +
-					`${ m.users[0].tagc } ` +
-					chalk.yellow(`(${ m.getRoundWins(m.users[0]) } - ${ m.getRoundWins(m.users[1]) }) `) +
-					`${ m.users[1].tagc }`
-				);
-			}
-		}
-	}
+	//        if(mb.in_progress) {
+	//            log.info(`updated set #${ mb.id }`);
+	//            return null;
+	//        } else {
+	//            var m = mb.getMatchSet();
+	//            log.info(
+	//                chalk.green(`completed set #${ m.id } (rids: ${ m.matchs.map(r => r.id) }): `) +
+	//                `${ m.users[0].tagc } ` +
+	//                chalk.yellow(`(${ m.getMatchWins(m.users[0]) } - ${ m.getMatchWins(m.users[1]) }) `) +
+	//                `${ m.users[1].tagc }`
+	//            );
+	//        }
+	//    }
+	//}
 
 	/**
-	 * Retrieves rounds by their ID from the database.
+	 * Retrieves matchs by their ID from the database.
 	 *
-	 * @param {number[]} ids The IDs of the rounds to retrieve.
+	 * @param {number[]} ids The IDs of the matchs to retrieve.
 	 *
-	 * @returns {Promise<Round>} The rounds that was retrieved.
+	 * @returns {Promise<Match>} The matchs that was retrieved.
 	 */
-	async getRound(ids) {
+	async getMatch(ids) {
 
 		let t1 = performance.now();
 
@@ -534,136 +382,103 @@ class SQLDatabase extends Database {
 			single = true;
 			ids = [ids];
 		}
-		const q = "SELECT * FROM rounds WHERE id = ANY($1)";
+		const q = "SELECT * FROM matchs WHERE id = ANY($1)";
 		let res = await this.pquery(q, [ids]);
 		let refs = res.rows;
 		
-		logger.info(`read rounds ${ ids } in ${ performance.now() - t1 }ms`);
+		log.info(`read matchs ${ ids } in ${ performance.now() - t1 }ms`);
 
-		// convert references into rounds
-		let rounds = Promise.all(refs.map(r => Round.load(r)));
+		// convert references into matchs
+		let matchs = Promise.all(refs.map(r => Match.load(r)));
 
-		logger.info(`loaded rounds ${ ids } in ${ performance.now() - t1 }ms`);
+		log.info(`loaded matchs ${ ids } in ${ performance.now() - t1 }ms`);
 
-		return (single ? (await rounds)[0] : rounds);
-	}
-
-	async _constructMatch(row) {
-
-		if(row.in_progress)
-			throw new Error(`cannot construct an empty match (id=${row.id})`);
-
-		let users =   await this.getUsers(row.users);
-		let winners;
-
-		let rounds = await this.getRounds(row.rounds);
-
-		if(!row.winners || row.winners.length == 0) {
-			logger.warn(`match #${row.id} is missing winners, calculating manually`);
-
-			let matchPoint = getMatchPoint(row.num_rounds);
-			winners = [];
-
-			for(let user of users) {
-				if(getRoundWins(user, rounds) >= matchPoint) winners.push(user);
-			}
-		} else {
-			winners = await this.getUsers(row.winners);
-		}
-
-		return new Match({
-			id:         row.id,
-			users:      users,
-			winners:    winners,
-			tournament: row.tournament,
-			num_rounds: row.num_rounds,
-			rounds:     rounds
-		});
+		return (single ? (await matchs)[0] : matchs);
 	}
 
 	/**
-	 * Gets a match from the database by the match ID.
+	 * Gets a set from the database by the set ID.
 	 *
-	 * @param {number} id The ID of the match to get.
+	 * @param {number} id The ID of the set to get.
 	 *
-	 * @returns {Match} The retrieved match.
+	 * @returns {Promise<MatchSet>} The retrieved set.
 	 */
-	async getMatch(id) {
+	async getMatchSet(id) {
 		
-		const q = "SELECT * FROM matches WHERE id=$1";
+		const q = "SELECT * FROM setes WHERE id=$1";
 
 		let res = await this.pquery(q, [id]);
 
 		if(res.rows.length == 0) {
 
-			throw new Error(`match #${ id } does not exist`);
+			throw new Error(`set #${ id } does not exist`);
 		}
 		else {
 
-			return await Match.load(res.rows[0]);
+			return await MatchSet.load(res.rows[0]);
 		}
 	}
 
 	/**
-	 * Gets all matches from the database.
+	 * Gets all setes from the database.
 	 *
-	 * @returns {Match[]} An array of matches.
+	 * @returns {MatchSet[]} An array of setes.
 	 */
-	async getAllMatches() {
+	async getAllMatchSetes() {
 
-		const q = "SELECT * FROM matches";
+		const q = "SELECT * FROM setes";
 
 		var res = await this.query(q);
 
 		let rows = res.rows.filter(row => !row.in_progress);
 
-		let matches = [];
+		let setes = [];
 		for(let row of rows) {
-			matches.push(await Match.load(row));
+			setes.push(await MatchSet.load(row));
 		}
 
-		return matches;
+		return setes;
 	}
 
 	/**
-	 * Writes a match into the database.
+	 * Writes a set into the database.
 	 */
-	async addMatch(match) {
-		const round_query = `
-			INSERT INTO rounds(users, winners) VALUES ($1, $2)
-			RETURNING *;
-		`;
-
+	async addMatchSet(set) {
 		const match_query = `
-			INSERT INTO matches(users, winners, rounds, num_rounds) VALUES ($1, $2, $3, $4)
+			INSERT INTO matchs(users, winners) VALUES ($1, $2)
 			RETURNING *;
 		`;
 
-		var round_ids = [];
-		for(let i = 0; i < match.rounds.length; i++) {
+		const set_query = `
+			INSERT INTO setes(users, winners, matchs, num_matchs) VALUES ($1, $2, $3, $4)
+			RETURNING *;
+		`;
 
-			let round = match.rounds[i];
-			let user_uuids = round.users.map(user => user.uuid);
-			let winr_uuids = round.winners.map(user => user.uuid);
+		var match_ids = [];
+		for(let i = 0; i < set.matchs.length; i++) {
 
-			let res = await this.pquery(round_query, [user_uuids, winr_uuids]);
-			round_ids.push(parseInt(res.rows[0].id));
+			let match = set.matchs[i];
+			let user_uuids = match.users.map(user => user.uuid);
+			let winr_uuids = match.winners.map(user => user.uuid);
+
+			let res = await this.pquery(match_query, [user_uuids, winr_uuids]);
+			match_ids.push(parseInt(res.rows[0].id));
 		}
 
-		let res = await this.pquery(match_query, [
-			match.users.map(user => user.uuid),
-			match.winners.map(user => user.uuid),
-			round_ids,
-			match.num_rounds
+		let res = await this.pquery(set_query, [
+			set.users.map(user => user.uuid),
+			set.winners.map(user => user.uuid),
+			match_ids,
+			set.num_matchs
 		]);
 
-		let match_id = res.rows[0].id;
+		let set_id = res.rows[0].id;
 
-		logger.info(
-			chalk.green(`added match #${ match_id } (rids: ${ round_ids }): `) +
-			`${ match.users[0].tagc } ` +
-			chalk.yellow(`(${ match.getRoundWins(match.users[0]) } - ${ match.getRoundWins(match.users[1]) }) `) +
-			`${ match.users[1].tagc }`
+		log.info(
+			chalk.green(`added set #${ set_id } (rids: ${ match_ids }): `) +
+			`${ set.users[0].tagc } ` +
+			chalk.yellow(`(${ set.getMatchWins(set.users[0]) } - ${ set.getMatchWins(set.users[1]) }) `) +
+			`${ set.users[1].tagc }`
 		);
 	}
 
@@ -680,7 +495,7 @@ class SQLDatabase extends Database {
 		// id: The ID of the tournament. Used as the PK and for other tables to use for referencing.
 		// title: The fancy title of the tournament.
 		// gametype: The ID of the gametype to use. This will decide most
-		//           default match rules as well as what metainfo will be required.
+		//           default set rules as well as what metainfo will be required.
 		// open_time: The time that this tournament will open. (can be null)
 		// close_time: The time that this tournament will close. (can be null)
 		// users: The users that are entered into this tournament.
