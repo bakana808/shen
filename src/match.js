@@ -1,319 +1,110 @@
 
-const shen = require("./shen").shen;
-const { findUserIn } = require("./util/userutils");
-var Options          = require("./util/options");
-var Event            = require("./event");
+// @ts-check
 
-const { getRoundWins, getMatchPoint } = require("./util/matchutils");
-
-const logger = new (require("./util/logger"))("match");
+const User = require("./user");
+const Contest = require("./contest");
+const Collection = require("./util/collection");
+const Scoreboard = require("./scoreboard");
 
 /**
  * Represents a tournament match.
  *
- * A match is immutable and must be able to provide the following information:
- *   1. the unique id referencing this specific match
- *   2. the Users in this match.
- *   3. the winners (Users) of this match.
+ * A match keeps track of score per-user using a Scoreboard in order to find a winner.
+ *
+ * A match can also contain metainfo (like characters or map chosen)
+ * that is specific to the match.
  */
-class Match {
-
-	constructor(data) {
-
-		/**
-		 * The ID of the match.
-		 *
-		 * @type {number}
-		 */
-		Object.defineProperty(this, "id", {
-			value: data.id,
-			enumerable: true
-		});
-
-		/**
-		 * The raw database object that was used to construct this match.
-		 *
-		 * @type {object}
-		 */
-		Object.defineProperty(this, "obj", {
-			value: data.obj,
-			enumerable: true
-		});
-
-		/**
-		 * The array of users that are involved in this match.
-		 *
-		 * @type {User[]}
-		 */
-		Object.defineProperty(this, "users", {
-			value: data.users,
-			enumerable: true
-		});
-
-		/**
-		 * The array of users that are considered "winners" of this match.
-		 *
-		 * @type {User[]}
-		 */
-		Object.defineProperty(this, "winners", {
-			value: data.winners,
-			enumerable: true
-		});
-
-		/**
-		 * The tournament that this match is for.
-		 *
-		 * @type {Tournament}
-		 */
-		Object.defineProperty(this, "tournament", {
-			value: data.tournament,
-			enumerable: true
-		});
-
-		/**
-		 * The maximum amount of rounds in this tournament.
-		 *
-		 * @type {number}
-		 */
-		Object.defineProperty(this, "num_rounds", {
-			value: data.num_rounds,
-			enumerable: true
-		});
-
-		/**
-		 * The rounds in this tournament.
-		 *
-		 * @type {Round[]}
-		 */
-		Object.defineProperty(this, "rounds", {
-			value: data.rounds,
-			enumerable: true
-		});
-	}
+class Match extends Contest {
 
 	/**
-	 * Constructs a Match using data containing references.
+	 * Creates a new match.
+	 *
+	 * @param {Object} options        Information about the match.
+	 * @param {User[]} options.users  The users involved in the match.
+	 * @param {object} [options.meta] Metainfo about the match.
+	 * @param {number} [options.time] The time this match was created.
 	 */
-	static async load(refs) {
+	constructor(id, options) {
+		
+		super(id, "match", options);
 
-		if(refs.in_progress) {
-
-			throw new Error(`cannot construct an empty match (id=${refs.id})`);
-		}
-
-		let shen = require("./shen").shen;
-
-		let users = await shen().getUserByID(refs.users);
-		let winners;
-
-		let rounds = await shen().getRound(refs.rounds);
-
-		if(!refs.winners || refs.winners.length == 0) {
-
-			logger.warn(`match #${refs.id} is missing winners, calculating manually`);
-
-			let matchPoint = getMatchPoint(refs.num_rounds);
-			winners = [];
-
-			for(let user of users) {
-
-				if(getRoundWins(user, rounds) >= matchPoint) winners.push(user);
-			}
+		if(Array.isArray(options.users)) { // convert to collection
+			
+			this.users = Collection.from(options.users);
 		}
 		else {
 
-			winners = await shen().getUserByID(refs.winners);
+			throw new Error("'users' option must be an array of users");
 		}
 
-		return new Match({
-			id:         refs.id,
-			users:      users,
-			winners:    winners,
-			tournament: refs.tournament,
-			num_rounds: refs.num_rounds,
-			rounds:     rounds
-		});
+		/**
+		 * The scoreboard used to keep track of user scores.
+		 *
+		 * @type {Scoreboard}
+		 */
+		this.scoreboard = new Scoreboard(this.users);
+
+		/**
+		 * Metainformation about the match.
+		 * This may include things such as stage, characters used, etc.
+		 *
+		 * @readonly
+		 * @type {Object}
+		 */
+		this.meta = options.meta;
 	}
 
 	/**
-	 * The winner of the match, or first winner of the match if there are
-	 * multiple winners.
+	 * Returns the first winner of this match.
+	 * If a match somehow has more than one winner, then use match.winners instead.
 	 *
-	 * @returns {User} the first winner of the match
+	 * @returns {User} The winner of this match.
 	 */
-	get winner()  { return this.winners[0]; }
+	getWinner() {
 
-	/**
-	 * The UNIX time in which this match took place.
-	 * If the time is null, the match did not contain the time.
-	 *
-	 * @returns {number} the time the match took place
-	 */
-	//get time() { return this.options.time; }
-
-	/**
-	 * Gets the total amount of round wins for this user according to the rounds
-	 * currently added.
-	 *
-	 * @returns {number} The amount of round wins for this user.
-	 */
-	getRoundWins(user) {
-
-		if(!findUserIn(user, this.users)) throw new Error(`the user ${ user.nametag() } is not a part of this match`);
-		let wins = 0;
-
-		this.rounds.forEach((round) => {
-			if(user.equals(round.winner)) wins++;
-		});
-
-		return wins;
-	}
-
-	/**
-	 * Gets the "score" of the player, which is a number between 0 to 1 (inclusive).
-	 * A score of 0.5 is a tie, where any score higher or lower than 0.5
-	 * is a win or loss, respectively.
-	 * A score of 1 or 0 is a complete win or loss.
-	 *
-	 * @returns {number} a score from 0 to 1
-	 */
-	getScore(user) {
-		if(!this.isComplete()) {
-			throw new ReferenceError("Cannot calculate score when match is not complete");
-		}
-		if(this.isWinner(user)) {
-			return 1;
-		} else {
-			return 0;
-		}
-	}
-
-	/**
-	 * Returns true if this match contains the provided user.
-	 *
-	 * @param  {type} userid description
-	 * @returns {Boolean}
-	 */
-	hasUser(user) { return user.in(this.users); }
-
-	/**
-	 * Returns true if the provided user is one of the winners of this match.
-	 *
-	 * @param  {type} userid description
-	 * @returns {type}        description
-	 */
-
-	isWinner(user) {
-		if(this.winners == null) {
-			return false;
-		}
-		return user.in(this.winners);
-	}
-
-	/**
-	 * Returns true if the match is tied between mulitple users, or in other
-	 * words, has more than one winner.
-	 *
-	 * @returns {boolean} true if this match has more than one winner
-	 */
-	isTie() { return this.winners.length > 1; }
-
-	/**
-	 * Returns true if the match has at least one winner.
-	 *
-	 * @returns {boolean} true if this match has at least one winner
-	 */
-	isComplete() { return this.winners.length > 0; }
-
-	/**
-	 * Gets a user by their order in the total list of users, where 0 is the
-	 * first user, 1 is the second user, and etc.
-	 *
-	 * @param {number} n the position to find the user
-	 * @returns {number} the user at that position
-	 */
-	getUserByOrder(n) {
-		if(typeof n !== "number") {
-			throw new TypeError("This position is not a number.");
-		}
-		if(n >= this.users.length) {
-			throw new RangeError("There is no user at this position.");
-		}
-		return this.users[n];
-	}
-
-	opponentOf(user) { return this.opponentsOf(user)[0]; }
-
-	opponentsOf(user) {
-
-		var opponents = [];
-		for(let u of this.users)
-			if(!user.equals(u)) opponents.push(u);
-
-		return opponents;
-	}
-
-	/**
-	 * Verifies an object version of a Match.
-	 * This method will throw an error if the properties of this match are
-	 * invalid.
-	 *
-	 * @param  {type} obj = this description
-	 * @returns {type}            description
-	 */
-	__verifyObject(data = this) {
-		data = Options.merge({
-			obj: {},
-			users:      null, // the users (ids) in the match
-			winners:    null, // the winners (ids) of the match
-			//tournament: null, // the tournament (id) of the match
-		}, data);
-
-		if(data.users == null || !(data.users instanceof Array)) {
-			throw new ReferenceError("Users for match is not an array.");
-		}
-
-		if(data.winners == null) {
-			throw new ReferenceError("Winners for match is not an array.");
-		}
-
-		if(!(data.users instanceof Array)) data.users = [data.users];
-
-		// if(data.tournament == null) {
-		// 	throw new ReferenceError("Tournament ID for match cannot be null.");
-		// }
+		return this.scoreboard.getWinner();
 	}
 }
 
-module.exports = Match;
+/**
+ * Creates a match using reference options.
+ * This will retrieve options from the optionsbase.
+ *
+ * @param {object}   refs         An object containing reference options.
+ * @param {string}   refs.id      The ID of this match.
+ * @param {string[]} refs.users   An array of user UUIDs.
+ * @param {object}   refs.meta    An object containing any metainfo about the match.
+ * @param {number}   refs.time    The time the match took place.
+ *
+ * @returns {Promise<Match>} The Match that was loaded.
+ */
+async function load(refs) {
 
-// class MatchSet extends Match {
-//
-// 	/**
-// 	 * constructor - description
-// 	 *
-// 	 * @param  {number} id          the unique id of this match
-// 	 * @param  {string[]} userIds   the userIds in this match
-// 	 * @param  {string[]} winners   the winners (userIds) of this match
-// 	 * @param  {object} wins        an object containing total round wins of each player
-// 	 * @param  {Round[]} rounds     an array containing all the rounds of this match
-// 	 * @param  {object} options     options object
-// 	 */
-// 	constructor(id, userIds, winners, wins, rounds, options) {
-// 		super(id, userIds, winners, options);
-//
-// 		this._rounds = rounds;
-// 		this._wins = wins;
-// 	}
-//
-// 	get rounds() { return this._rounds; }
-//
-// 	getRoundWins(userid) { return this._wins[userid]; }
-//
-// 	getScore(userid) {
-// 		if(!this.isComplete()) {
-// 			throw new ReferenceError("cannot get score when match is not complete");
-// 		}
-// 		return this._wins[userid] / this.rounds.length;
-// 	}
-// }
+	let shen = require("./shen").shen;
+
+	let users = await shen().getUserByID(refs.users);
+
+	if(!Array.isArray(users)) {
+
+		throw new Error("didn't recieve array of users from getUserByID");
+	}
+
+	let meta = {};
+	
+	if(refs.meta && (typeof refs.meta) === "string") {
+
+		meta = JSON.parse(refs.meta);
+	}
+
+	let match = new Match(refs.id, {
+		users: users,
+		meta: meta
+	});
+
+	match.meta = {"test": "test"};
+
+	return match;
+}
+
+module.exports.load = load;
+module.exports = Match;
