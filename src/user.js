@@ -1,11 +1,8 @@
 
-const Logger = require("./util/logger");
 const chalk = require("chalk");
 
 /**
  * Represents a user on Shen.
- *
- * @class
  */
 class User {
 	
@@ -13,7 +10,7 @@ class User {
 	 * Constructs a user.
 	 *
 	 * @param {Object} data               Information about the user.
-	 * @param {string} data.uuid          The user's UUID.
+	 * @param {string} data.id            The user's UUID.
 	 * @param {string} data.name          The user's name.
 	 * @param {string} data.discriminator The user's discriminator.
 	 */
@@ -25,15 +22,14 @@ class User {
 		 * @type {string}
 		 * @readonly
 		 */
-		Object.defineProperty(this, "uuid", { value: data.uuid, enumerable: true });
+		this.id = data.id;
 
 		/**
 		 * The username of the user.
 		 *
 		 * @type {string}
-		 * @readonly
 		 */
-		Object.defineProperty(this, "name", { value: data.name, enumerable: true });
+		this.name = data.name;
 
 		/**
 		 * The discriminator of this user, a 4-digit numerical string.
@@ -41,20 +37,8 @@ class User {
 		 * themselves without exposing their UUID.
 		 *
 		 * @type {string}
-		 * @readonly
 		 */
-		Object.defineProperty(this, "discriminator", { value: data.discriminator, enumerable: true });
-	}
-
-	static async load(refs) {
-
-		var user = new User({
-			uuid: refs.uuid,
-			name: refs.name,
-			discriminator: refs.discriminator
-		});
-
-		return user;
+		this.discriminator = data.discriminator;
 	}
 
 	/**
@@ -66,31 +50,6 @@ class User {
 	get tag() { return this.name + "#" + this.discriminator; }
 
 	/**
-	 * Returns a colored version of this user's tag.
-	 * Not recommended to use anywhere other than the CLI.
-	 *
-	 * @returns {string} The colored tag of this user.
-	 */
-	get tagc() {
-		return chalk.white(this.name) + chalk.gray("#" + this.discriminator);
-	}
-
-	/**
-	 * Checks if this user is in the provided array of users.
-	 *
-	 * @deprecated Use (@link findUserIn) instead.
-	 */
-	in(users) {
-		var pass = false;
-		users.forEach(user => {
-			if(user.equals(this)) {
-				pass = true; return false; // set true and break
-			}
-		});
-		return pass;
-	}
-
-	/**
 	 * Checks if this user is equal to another user.
 	 *
 	 * @param {User} user The user to check against.
@@ -100,7 +59,7 @@ class User {
 	equals(user) {
 		if(user === null) return false;
 
-		let cond1 = (user.uuid === this.uuid);
+		let cond1 = (user.id === this.id);
 		//Logger.info(`${user.uuid} === ${this.uuid} (${cond1})`);
 
 		let cond2 = (user.name === this.name);
@@ -110,22 +69,6 @@ class User {
 		//Logger.info(`${user.discriminator} === ${this.discriminator} (${cond3})`);
 
 		return cond1 && cond2 && cond3;
-	}
-
-	static getUser(users, userId) {
-		var found = null;
-		users.forEach(user => {
-			//Logger.info("comparing " + user.id + " == " + userId + " (" + (user.id == userId) + ")");
-			if(user.id == userId) {
-				found = user;
-				return false; }
-		});
-		if(found == null) {
-			throw new ReferenceError("The user with ID " + userId + " does not exist.");
-		} else {
-			return found;
-		}
-
 	}
 
 	/**
