@@ -9,26 +9,18 @@
 //==============================================================================
 
 const util =  require("util");  // used to print objects
-const chalk = require("chalk"); // for printing colors
+
+import chalk from "chalk";
 
 const readline      = require("readline"); // used for CLI
 const logger        = new (require("./util/logger"))("core");
 
-// passport.js + extras
-
-const passport        = require("passport");
-const DiscordStrategy = require("passport-discord").Strategy;
-const GoogleStrategy  = require("passport-google-oauth").OAuth2Strategy;
-
-// express.js + extras
-
-var express         = require("express");
-var cookieParser    = require("cookie-parser");
-var session         = require("express-session");
-
 // local dependencies
-const { shen, init }  = require("./shen");
-const SQLDatabase     = require("./database/sql");
+
+import { shen, init } from "./shen";
+
+import SQLDatabase from "./database/sql";
+
 const DiscordBot      = require("./discord/bot");
 const DiscordCommands = require("./discord/commands");
 const CommandListener = require("./cmd/listener");
@@ -75,188 +67,6 @@ shen.fetchActiveTournament()
 	})
 	.catch(error => console.log(error.stack));
 */
-
-//==============================================================================
-// Configure Passport.js
-//==============================================================================
-
-logger.info("initializing passport.js...");
-
-// User Serialization ----------------------------------------------------------
-
-passport.serializeUser((user, done) =>
-{
-	done(null, user.uuid); // convert user into uuid
-});
-
-passport.deserializeUser(async (uuid, done) =>
-{
-	let user = await shen().getUserByID(uuid); // convert uuid into user
-	done(null, user);
-});
-
-// Strategies ------------------------------------------------------------------
-
-passport.use(new DiscordStrategy(
-	{
-		clientID:     process.env.DISCORD_CLIENT_ID,
-		clientSecret: process.env.DISCORD_CLIENT_SECRET,
-		callbackURL: "/auth/discord/cb",
-		proxy: true,
-		passReqToCallback: true
-	},
-	async (_req, _accessToken, _refreshToken, profile, done) => {
-	
-		// attempt to get a user with this discord ID
-		let user = await shen().getUserByLink({ discord: profile.id });
-
-		if(user) // return user
-		{
-			logger.info(`discord user logged in ${ user.tag }`);
-			done(null, user);
-		}
-		else // create a new user
-		{
-			logger.info(`creating new user for discord user ${ profile.tag }`);
-			user = await shen().db.add_user(profile.username);
-			user = await shen().db.link_user_discord(profile.id, user.id);
-
-			done(null, user);
-		}
-	})
-);
-
-// Google authentication strategy
-
-if(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-
-	passport.use(new GoogleStrategy(
-		{
-			clientID:     process.env.GOOGLE_CLIENT_ID,
-			clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-			callbackURL: "/auth/google/cb",
-			proxy: true,
-			passReqToCallback: true
-		},
-		(req, _accessToken, _refreshToken, profile, cb) => {
-			
-			if(req.user) { // link profiles
-
-				if(profile._json.domain == "hawaii.edu") {
-					logger.info("flagging user " + chalk.green(req.user.toString()) + " as verified (hawaii.edu)");
-					shen.db.verifyUser(req.user.id)
-						.then(() => cb(null, req.user));
-				}
-			
-			} else { cb(null, false); }
-		}
-	));
-}
-else {
-
-	logger.warn("ev 'GOOGLE_CLIENT_ID' and 'GOOGLE_CLIENT_SECRET' not found! google auth will not be used.");
-}
-
-//==============================================================================
-// Configure Express.js
-//==============================================================================
-
-logger.info("initializing express.js...");
-
-const app =  express();
-const port = config.port;
-
-app.set("view engine", "pug");
-app.set("json replacer", null);
-app.set("json spaces", 4);
-
-// add sessions and passport to express
-
-const COOKIE_SECRET = "persist123"; // TODO move this to environment variable
-
-app.use(cookieParser(COOKIE_SECRET));
-app.use(session({
-	store: new (require("connect-pg-simple")(session))(),
-	secret: COOKIE_SECRET,
-	resave: false,
-	cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
-}));
-
-//app.use("assets", express.static(__dirname + "/../site")); // __dirname => shen-server/src
-//app.use("/views", express.static(__dirname + "/views"));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// use router/webapp.js as main router
-
-app.use("/", require("./router/webapp"));
-
-// Passport Authentication Routes ----------------------------------------------
-
-logger.info("initializing authentication routes...");
-
-app.get("/auth/discord",
-
-	(req, res, next) => {
-		
-		logger.info("user is authenticating (callback = " + req.cookies["discord_cb_success"] + ")");
-		next();
-	},
-
-	passport.authenticate("discord", { scope: "identify" })
-);
-
-app.get("/auth/discord/cb", (req, res, next) => {
-
-	// get callback urls from cookies
-	var successURL = req.cookies["discord_cb_success"];
-	var failureURL = req.cookies["discord_cb_failure"];
-
-	res.clearCookie("discord_cb_success");
-	res.clearCookie("discord_cb_failure");
-
-	passport.authenticate("discord", (err, user, info) => {
-
-		if(info) { console.log("login info: " + JSON.stringify(info)); }
-		
-		if(err) {
-
-			return res.redirect(failureURL);
-		}
-		else {
-
-			console.log("user logged in! " + user.tag);
-			req.logIn(user, (err) => {
-
-				if(err) {
-
-					return res.redirect(failureURL);
-				}
-				return res.redirect(successURL);
-			});
-		}
-
-	})(req, res);
-});
-
-app.get("/auth/google",
-
-	passport.authenticate("google", { hd: "hawaii.edu", scope: ["profile", "email"] })
-);
-
-app.get("/auth/google/cb", (req, res, next) => {
-
-	// get callback urls from cookies
-	var successURL = req.cookies["google_cb_success"];
-	var failureURL = req.cookies["google_cb_failure"];
-
-	res.clearCookie("google_cb_success");
-	res.clearCookie("google_cb_failure");
-
-	passport.authenticate("google", { successRedirect: successURL, failureRedirect: failureURL });
-});
-
-app.use(require("./router/api/v1")); // v1 API routes
 
 //==============================================================================
 // Configure Command Listener
@@ -329,21 +139,14 @@ var bot = new DiscordBot({
 	server: process.env.DISCORD_SERVER_ID
 });
 
-// start listening now
-var server = app.listen(port);
-
 // =============================================================================
 // Configuration is done; Startup everything and begin CLI
 // =============================================================================
 
 init({
-	db: db,
-	cl: cl,
-	server: server,
-	bot: new DiscordBot({
-		token: config.discord.botToken,
-		server: process.env.DISCORD_SERVER_ID
-	})
+	database: db,
+	commands: cl,
+	bot: bot
 }).then(() =>
 {
 	// add builtin gametitles
