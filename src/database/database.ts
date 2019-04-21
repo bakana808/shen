@@ -1,10 +1,11 @@
 
+import User from "../user";
+import MatchBuilder from "../matchbuilder";
+
 /**
  * An abstract class that describes what functions a database should implement.
- *
- * @abstract
  */
-class Database {
+export interface Database {
 	
 	/**
 	 * Adds a new user.
@@ -16,10 +17,7 @@ class Database {
 	 *
 	 * @returns {Promise<User>} the user that was created
 	 */
-	addUser(_name, _dscr) {
-
-		throw new Error("not implemented");
-	}
+	addUser(name: string, dscr: string): Promise<User>;
 
 	/**
 	 * Returns a User by their tag.
@@ -28,22 +26,16 @@ class Database {
 	 *
 	 * @returns {Promise<User?>} The User, or null
 	 */
-	getUser(_tag) {
-
-		throw new Error("not implemented");
-	}
+	getUser(tag: string): Promise<User|null>;
 
 	/**
 	 * Returns a single User by a UUID, or multiple Users by an array of UUIDs.
 	 *
-	 * @param {string|string[]} _uuid The User's UUID, or an array of UUIDs.
+	 * @param {string[]} _ids The User's UUID, or an array of UUIDs.
 	 *
-	 * @returns {Promise<User?>} The User, or null
+	 * @returns {Promise<User[]>} The User, or null
 	 */
-	getUserByID(_uuid) {
-
-		throw new Error("not implemented");
-	}
+	loadUsersByID(...ids: string[]): Promise<User[]>;
 
 	/**
 	 * Returns a single User using information from a linked account.
@@ -53,10 +45,7 @@ class Database {
 	 *
 	 * @returns {Promise<User?>} The User, or null
 	 */
-	getUserByLink(_options) {
-
-		throw new Error("not implemented");
-	}
+	getUserByLink(_options): Promise<User|null>;
 
 	/**
 	 * Finds users matching a partial name.
@@ -65,10 +54,7 @@ class Database {
 	 *
 	 * @returns {Promise<User[]>} The users that match this partial name.
 	 */
-	searchUsers(_partial) {
-
-		throw new Error("not implemented");
-	}
+	searchUsers(_partial): Promise<User[]>;
 
 	/**
 	* Links a user to a Discord ID.
@@ -79,10 +65,8 @@ class Database {
 	*
 	* @returns {Promise<User>} The user (after linking)
 	*/
-	linkUser(_uuid, _options) {
+	linkUser(uuid: string, options): Promise<User>;
 
-		throw new Error("not implemented");
-	}
 
 	// MATCH / ROUND DB METHODS
 	//==========================================================================
@@ -95,14 +79,7 @@ class Database {
 	 *
 	 * @param {MatchBuilder} _mb The match builder.
 	 *
-	 * @return {number} The ID of the inserted match.
+	 * @return {Promise<number>} The ID of the inserted match.
 	 */
-	openMatch(_mb) {
-
-		throw new Error("not implemented");
-	}
-
+	openMatch(mb: MatchBuilder): Promise<number>;
 }
-
-module.exports = Database;
-
