@@ -33,6 +33,11 @@
 		"validator": "9.2.0"
 	},
 	"devDependencies": {
+		"@types/express": "^4.16.1",
+		"@types/express-session": "^1.15.12",
+		"@types/passport": "^1.0.0",
+		"@types/passport-google-oauth": "^1.0.40",
+		"@types/passport-google-oauth2": "^0.1.2",
 		"@typescript-eslint/eslint-plugin": "^1.6.0",
 		"@typescript-eslint/parser": "^1.6.0",
 		"eslint": "^5.16.0",
